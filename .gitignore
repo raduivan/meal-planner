@@ -1,0 +1,19 @@
+# 1) Add ignore rules
+cat >> .gitignore <<'EOF'
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+tfplan
+.terraformrc
+terraform.rc
+EOF
+
+# 2) Remove already-tracked big files from index
+git rm -r --cached iac/.terraform
+
+# 3) Commit and force push
+git add .gitignore
+git commit -m "chore: ignore Terraform local dir"
+git push -u origin main --force
