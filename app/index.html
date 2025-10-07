@@ -5,33 +5,124 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Meal Planner</title>
   </head>
-  <body>
-    <h1>Meal Planner</h1>
-    <p>Firebase Hosting is wired up. 🎉</p>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.4;">
+  <h1 style="margin-bottom: .25rem;">Meal Planner</h1>
+  <p style="margin-top: 0; color:#555">Add a recipe (macros per 100g). Data saves to Firestore.</p>
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCyTlR-qx5aFCsizhRMPe1hz1pdJaLJjQk",
-    authDomain: "meal-planner-474313.firebaseapp.com",
-    projectId: "meal-planner-474313",
-    appId: "1:127147495973:web:0d985075becd2929763babc"
-  };
+  <form id="recipeForm" style="display:grid; gap:.75rem; max-width:520px; margin:1rem 0; padding:1rem; border:1px solid #eee; border-radius:12px;">
+    <label>
+      <div>Recipe name</div>
+      <input id="name" required placeholder="Pasta Primavera" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
+    </label>
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+    <div style="display:grid; gap:.75rem; grid-template-columns:repeat(2, minmax(0,1fr));">
+      <label>
+        <div>Calories / 100g</div>
+        <input id="cal" type="number" min="0" step="1" required placeholder="550" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
+      </label>
+      <label>
+        <div>Protein g / 100g</div>
+        <input id="protein" type="number" min="0" step="0.1" required placeholder="20" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
+      </label>
+      <label>
+        <div>Carbs g / 100g</div>
+        <input id="carbs" type="number" min="0" step="0.1" required placeholder="60" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
+      </label>
+      <label>
+        <div>Fat g / 100g</div>
+        <input id="fat" type="number" min="0" step="0.1" required placeholder="12" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
+      </label>
+    </div>
 
-  // Write a sample recipe
-  await setDoc(doc(db, "recipes", "demo"), {
-    name: "Pasta Primavera",
-    calories: 550,
-    createdAt: new Date().toISOString()
-  });
+    <button type="submit" style="padding:.7rem 1rem; border:0; border-radius:10px; background:#0b57d0; color:white; font-weight:600; cursor:pointer;">
+      Save recipe
+    </button>
 
-  // Read it back
-  const snap = await getDoc(doc(db, "recipes", "demo"));
-  console.log("Recipe:", snap.data());
-</script>
-  </body>
+    <div id="msg" style="display:none; padding:.6rem .8rem; border-radius:10px; background:#e8f0fe; color:#174ea6;"></div>
+  </form>
+
+  <h2 style="margin-top:2rem;">Recent recipes</h2>
+  <ul id="list" style="padding-left:1rem;"></ul>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } 
+      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyTlR-qx5aFCsizhRMPe1hz1pdJaLJjQk",
+      authDomain: "meal-planner-474313.firebaseapp.com",
+      projectId: "meal-planner-474313",
+      appId: "1:127147495973:web:0d985075becd2929763babc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    const form = document.getElementById('recipeForm');
+    const msg  = document.getElementById('msg');
+    const list = document.getElementById('list');
+
+    function showMsg(text, ok=true){
+      msg.textContent = text;
+      msg.style.display = 'block';
+      msg.style.background = ok ? '#e8f0fe' : '#fde7e9';
+      msg.style.color = ok ? '#174ea6' : '#a50e0e';
+      setTimeout(()=>msg.style.display='none', 3000);
+    }
+
+    async function loadRecent() {
+      list.innerHTML = '<li style="color:#777">Loading…</li>';
+      const q = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
+      const snap = await getDocs(q);
+      list.innerHTML = '';
+      if (snap.empty) {
+        list.innerHTML = '<li style="color:#777">No recipes yet.</li>';
+        return;
+      }
+      snap.forEach(docSnap => {
+        const r = docSnap.data();
+        const item = document.createElement('li');
+        item.style.marginBottom = '.4rem';
+        item.textContent = `${r.name} — ${r.caloriesPer100} kcal/100g · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g`;
+        list.appendChild(item);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name    = document.getElementById('name').value.trim();
+      const cal     = Number(document.getElementById('cal').value);
+      const protein = Number(document.getElementById('protein').value);
+      const carbs   = Number(document.getElementById('carbs').value);
+      const fat     = Number(document.getElementById('fat').value);
+
+      if (!name || [cal,protein,carbs,fat].some(v => Number.isNaN(v) || v < 0)) {
+        showMsg('Please fill all fields with valid numbers.', false);
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, 'recipes'), {
+          name,
+          caloriesPer100: cal,
+          proteinPer100:  protein,
+          carbsPer100:    carbs,
+          fatPer100:      fat,
+          createdAt:      serverTimestamp()
+        });
+        form.reset();
+        showMsg('Recipe saved!');
+        await loadRecent();
+      } catch (err) {
+        console.error(err);
+        showMsg('Failed to save recipe.', false);
+      }
+    });
+
+    // initial load
+    loadRecent();
+  </script>
+</body>
 </html>
