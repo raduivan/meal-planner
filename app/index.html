@@ -8,5 +8,18 @@
   <body>
     <h1>Meal Planner</h1>
     <p>Firebase Hosting is wired up. 🎉</p>
+    <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCyTlR-qx5aFCsizhRMPe1hz1pdJaLJjQk",
+    authDomain: "meal-planner-474313.firebaseapp.com",
+    projectId: "meal-planner-474313",
+    appId: "1:127147495973:web:0d985075becd2929763babc"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  console.log("Firebase initialized:", app.name);
+</script>
   </body>
 </html>
