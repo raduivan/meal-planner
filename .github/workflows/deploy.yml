@@ -30,7 +30,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with: { terraform_version: 1.8.5 }
+        with:
+          terraform_version: 1.8.5
 
       # Restore prior local state (if any)
       - name: Download TF state artifact
@@ -41,7 +42,7 @@ jobs:
         continue-on-error: true
 
       - name: Terraform Init (local state)
-       .working-directory: iac
+        working-directory: iac
         run: terraform init
 
       - name: Terraform Plan
@@ -65,5 +66,5 @@ jobs:
           path: |
             iac/terraform.tfstate
             iac/.terraform.lock.hcl
-          if-no-files-found: error
-          retention-days: 30
+        if-no-files-found: error
+        retention-days: 30
