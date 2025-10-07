@@ -6,124 +6,176 @@
     <title>Meal Planner</title>
   </head>
   <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.4;">
-  <h1 style="margin-bottom: .25rem;">Meal Planner</h1>
-  <p style="margin-top: 0; color:#555">Add a recipe (macros per 100g). Data saves to Firestore.</p>
 
-  <form id="recipeForm" style="display:grid; gap:.75rem; max-width:520px; margin:1rem 0; padding:1rem; border:1px solid #eee; border-radius:12px;">
-    <label>
-      <div>Recipe name</div>
-      <input id="name" required placeholder="Pasta Primavera" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
-    </label>
+    <h1 style="margin-bottom:.25rem;">Meal Planner</h1>
+    <p style="margin-top:0;color:#555">Add a recipe (macros per 100g). Data saves to Firestore.</p>
 
-    <div style="display:grid; gap:.75rem; grid-template-columns:repeat(2, minmax(0,1fr));">
-      <label>
-        <div>Calories / 100g</div>
-        <input id="cal" type="number" min="0" step="1" required placeholder="550" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
-      </label>
-      <label>
-        <div>Protein g / 100g</div>
-        <input id="protein" type="number" min="0" step="0.1" required placeholder="20" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
-      </label>
-      <label>
-        <div>Carbs g / 100g</div>
-        <input id="carbs" type="number" min="0" step="0.1" required placeholder="60" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
-      </label>
-      <label>
-        <div>Fat g / 100g</div>
-        <input id="fat" type="number" min="0" step="0.1" required placeholder="12" style="width:100%; padding:.6rem; border:1px solid #ddd; border-radius:10px;">
-      </label>
+    <!-- Auth bar -->
+    <div id="authbar" style="display:flex;justify-content:space-between;align-items:center;margin:.5rem 0 1rem;">
+      <div id="who" style="color:#555">Not signed in</div>
+      <button id="authBtn" style="padding:.5rem .8rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
+        Sign in with Google
+      </button>
     </div>
 
-    <button type="submit" style="padding:.7rem 1rem; border:0; border-radius:10px; background:#0b57d0; color:white; font-weight:600; cursor:pointer;">
-      Save recipe
-    </button>
+    <!-- Recipe form -->
+    <form id="recipeForm" style="display:grid;gap:.75rem;max-width:520px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
+      <label>
+        <div>Recipe name</div>
+        <input id="name" required placeholder="Pasta Primavera" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
+      </label>
 
-    <div id="msg" style="display:none; padding:.6rem .8rem; border-radius:10px; background:#e8f0fe; color:#174ea6;"></div>
-  </form>
+      <div style="display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr));">
+        <label>
+          <div>Calories / 100g</div>
+          <input id="cal" type="number" min="0" step="1" required placeholder="550" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
+        </label>
+        <label>
+          <div>Protein g / 100g</div>
+          <input id="protein" type="number" min="0" step="0.1" required placeholder="20" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
+        </label>
+        <label>
+          <div>Carbs g / 100g</div>
+          <input id="carbs" type="number" min="0" step="0.1" required placeholder="60" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
+        </label>
+        <label>
+          <div>Fat g / 100g</div>
+          <input id="fat" type="number" min="0" step="0.1" required placeholder="12" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
+        </label>
+      </div>
 
-  <h2 style="margin-top:2rem;">Recent recipes</h2>
-  <ul id="list" style="padding-left:1rem;"></ul>
+      <button type="submit" style="padding:.7rem 1rem;border:0;border-radius:10px;background:#0b57d0;color:white;font-weight:600;cursor:pointer;">
+        Save recipe
+      </button>
 
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs } 
-      from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      <div id="msg" style="display:none;padding:.6rem .8rem;border-radius:10px;background:#e8f0fe;color:#174ea6;"></div>
+    </form>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCyTlR-qx5aFCsizhRMPe1hz1pdJaLJjQk",
-      authDomain: "meal-planner-474313.firebaseapp.com",
-      projectId: "meal-planner-474313",
-      appId: "1:127147495973:web:0d985075becd2929763babc"
-    };
+    <h2 style="margin-top:2rem;">Recent recipes</h2>
+    <ul id="list" style="padding-left:1rem;"></ul>
 
-    const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
+    <!-- Firebase -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import {
+        getFirestore, collection, addDoc, serverTimestamp,
+        query, orderBy, limit, getDocs
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      import {
+        getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-    const form = document.getElementById('recipeForm');
-    const msg  = document.getElementById('msg');
-    const list = document.getElementById('list');
+      // --- Your Firebase config (from Terraform outputs) ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyCyTlR-qx5aFCsizhRMPe1hz1pdJaLJjQk",
+        authDomain: "meal-planner-474313.firebaseapp.com",
+        projectId: "meal-planner-474313",
+        appId: "1:127147495973:web:0d985075becd2929763babc"
+      };
 
-    function showMsg(text, ok=true){
-      msg.textContent = text;
-      msg.style.display = 'block';
-      msg.style.background = ok ? '#e8f0fe' : '#fde7e9';
-      msg.style.color = ok ? '#174ea6' : '#a50e0e';
-      setTimeout(()=>msg.style.display='none', 3000);
-    }
+      // Init
+      const app  = initializeApp(firebaseConfig);
+      const db   = getFirestore(app);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
 
-    async function loadRecent() {
-      list.innerHTML = '<li style="color:#777">Loading…</li>';
-      const q = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
-      const snap = await getDocs(q);
-      list.innerHTML = '';
-      if (snap.empty) {
-        list.innerHTML = '<li style="color:#777">No recipes yet.</li>';
-        return;
+      // UI refs
+      const form = document.getElementById('recipeForm');
+      const msg  = document.getElementById('msg');
+      const list = document.getElementById('list');
+      const who  = document.getElementById('who');
+      const authBtn = document.getElementById('authBtn');
+
+      function showMsg(text, ok=true){
+        msg.textContent = text;
+        msg.style.display = 'block';
+        msg.style.background = ok ? '#e8f0fe' : '#fde7e9';
+        msg.style.color = ok ? '#174ea6' : '#a50e0e';
+        setTimeout(()=>msg.style.display='none', 3000);
       }
-      snap.forEach(docSnap => {
-        const r = docSnap.data();
-        const item = document.createElement('li');
-        item.style.marginBottom = '.4rem';
-        item.textContent = `${r.name} — ${r.caloriesPer100 ?? r.calories ?? '—'} kcal/100g · `
-  + `P ${r.proteinPer100 ?? '—'}g · C ${r.carbsPer100 ?? '—'}g · F ${r.fatPer100 ?? '—'}g`;
-        list.appendChild(item);
+
+      // Auth state → update UI
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          who.textContent = `Signed in as ${user.displayName || user.email}`;
+          authBtn.textContent = "Sign out";
+        } else {
+          who.textContent = "Not signed in";
+          authBtn.textContent = "Sign in with Google";
+        }
       });
-    }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name    = document.getElementById('name').value.trim();
-      const cal     = Number(document.getElementById('cal').value);
-      const protein = Number(document.getElementById('protein').value);
-      const carbs   = Number(document.getElementById('carbs').value);
-      const fat     = Number(document.getElementById('fat').value);
+      // Sign in/out button
+      authBtn.onclick = async () => {
+        try {
+          if (auth.currentUser) { await signOut(auth); return; }
+          await signInWithPopup(auth, provider);
+        } catch (e) {
+          console.error(e);
+          showMsg("Auth error. Try again.", false);
+        }
+      };
 
-      if (!name || [cal,protein,carbs,fat].some(v => Number.isNaN(v) || v < 0)) {
-        showMsg('Please fill all fields with valid numbers.', false);
-        return;
-      }
-
-      try {
-        await addDoc(collection(db, 'recipes'), {
-          name,
-          caloriesPer100: cal,
-          proteinPer100:  protein,
-          carbsPer100:    carbs,
-          fatPer100:      fat,
-          createdAt:      serverTimestamp()
+      // Load last 10
+      async function loadRecent() {
+        list.innerHTML = '<li style="color:#777">Loading…</li>';
+        const q = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
+        const snap = await getDocs(q);
+        list.innerHTML = '';
+        if (snap.empty) {
+          list.innerHTML = '<li style="color:#777">No recipes yet.</li>';
+          return;
+        }
+        snap.forEach(docSnap => {
+          const r = docSnap.data();
+          const item = document.createElement('li');
+          item.style.marginBottom = '.4rem';
+          const kcal  = r.caloriesPer100 ?? r.calories ?? '—';
+          const prot  = r.proteinPer100 ?? '—';
+          const carbs = r.carbsPer100 ?? '—';
+          const fat   = r.fatPer100 ?? '—';
+          item.textContent = `${r.name} — ${kcal} kcal/100g · P ${prot}g · C ${carbs}g · F ${fat}g`;
+          list.appendChild(item);
         });
-        form.reset();
-        showMsg('Recipe saved!');
-        await loadRecent();
-      } catch (err) {
-        console.error(err);
-        showMsg('Failed to save recipe.', false);
       }
-    });
 
-    // initial load
-    loadRecent();
-  </script>
-</body>
+      // Create recipe
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name    = document.getElementById('name').value.trim();
+        const cal     = Number(document.getElementById('cal').value);
+        const protein = Number(document.getElementById('protein').value);
+        const carbs   = Number(document.getElementById('carbs').value);
+        const fat     = Number(document.getElementById('fat').value);
+
+        if (!name || [cal,protein,carbs,fat].some(v => Number.isNaN(v) || v < 0)) {
+          showMsg('Please fill all fields with valid numbers.', false);
+          return;
+        }
+
+        try {
+          await addDoc(collection(db, 'recipes'), {
+            name,
+            caloriesPer100: cal,
+            proteinPer100:  protein,
+            carbsPer100:    carbs,
+            fatPer100:      fat,
+            createdAt:      serverTimestamp(),
+            ownerUid:       auth.currentUser?.uid || null  // rules use this
+          });
+          form.reset();
+          showMsg('Recipe saved!');
+          await loadRecent();
+        } catch (err) {
+          console.error(err);
+          // If rules block writes when signed-out or not owner:
+          const denied = err?.code === 'permission-denied';
+          showMsg(denied ? 'Permission denied — sign in first.' : 'Failed to save recipe.', false);
+        }
+      });
+
+      // initial load
+      loadRecent();
+    </script>
+  </body>
 </html>
