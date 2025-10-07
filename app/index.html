@@ -8,7 +8,7 @@
   <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.4;">
 
     <h1 style="margin-bottom:.25rem;">Meal Planner</h1>
-    <p style="margin-top:0;color:#555">Add a recipe (macros per 100g). Data saves to Firestore.</p>
+    <p style="margin-top:0;color:#555">Add recipes (per 100g), plan meals by grams, and track against daily targets.</p>
 
     <!-- Auth bar -->
     <div id="authbar" style="display:flex;justify-content:space-between;align-items:center;margin:.5rem 0 1rem;">
@@ -54,26 +54,101 @@
     <h2 style="margin-top:2rem;">Recent recipes</h2>
     <ul id="list" style="padding-left:1rem;"></ul>
 
+    <!-- Daily planner -->
+    <h2 style="margin-top:2rem;">Daily planner</h2>
+    <div style="display:grid;gap:1rem;max-width:760px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
+
+      <!-- Date + Targets -->
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:end">
+        <label> Date<br>
+          <input id="planDate" type="date" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;">
+        </label>
+
+        <div style="padding:.75rem;border:1px solid #eee;border-radius:12px;">
+          <div style="font-weight:600;margin-bottom:.4rem;">Daily targets</div>
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:end">
+            <label style="display:grid;">
+              <span>kcal</span>
+              <input id="tKcal" type="number" min="0" step="1" value="2200" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
+            </label>
+            <label style="display:grid;">
+              <span>P (g)</span>
+              <input id="tP" type="number" min="0" step="1" value="150" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
+            </label>
+            <label style="display:grid;">
+              <span>C (g)</span>
+              <input id="tC" type="number" min="0" step="1" value="220" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
+            </label>
+            <label style="display:grid;">
+              <span>F (g)</span>
+              <input id="tF" type="number" min="0" step="1" value="70" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
+            </label>
+            <button id="saveTargets" type="button" style="padding:.55rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">Save targets</button>
+          </div>
+          <div id="targetsSaved" style="display:none;margin-top:.4rem;color:#137333;">Targets saved ✓</div>
+        </div>
+      </div>
+
+      <!-- Add meal row -->
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:end">
+        <label> Meal<br>
+          <select id="mealType" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;">
+            <option>breakfast</option>
+            <option>lunch</option>
+            <option>dinner</option>
+            <option>snack</option>
+          </select>
+        </label>
+        <label> Recipe<br>
+          <select id="mealRecipe" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;min-width:250px;"></select>
+        </label>
+        <label> Grams<br>
+          <input id="mealGrams" type="number" min="1" step="1" value="100"
+                 style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:120px;">
+        </label>
+        <button id="addMealBtn" style="padding:.6rem 1rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
+          Add to day
+        </button>
+      </div>
+
+      <!-- Suggest grams helper -->
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;background:#fafafa;border:1px dashed #ddd;padding:.75rem;border-radius:10px;">
+        <button id="suggestBtn" type="button" style="padding:.55rem .9rem;border:0;border-radius:10px;background:#155e75;color:#fff;font-weight:600;cursor:pointer">
+          Suggest grams (hit kcal)
+        </button>
+        <div id="suggestOut" style="color:#444;"></div>
+        <button id="applySuggestBtn" type="button" style="padding:.45rem .8rem;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;cursor:pointer;display:none;">
+          Apply grams
+        </button>
+      </div>
+
+      <!-- Totals/Remaining -->
+      <div id="totals" style="font-weight:600;">Totals: kcal 0 · P 0g · C 0g · F 0g</div>
+      <div id="remaining" style="font-weight:600;color:#555;">Remaining: kcal — · P —g · C —g · F —g</div>
+
+      <ul id="mealsList" style="padding-left:1rem;margin:0;"></ul>
+    </div>
+
     <!-- Firebase -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
       import {
         getFirestore, collection, addDoc, serverTimestamp,
-        query, orderBy, limit, getDocs
+        query, orderBy, limit, getDocs, doc, setDoc, getDoc
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
       import {
         getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-      // --- Your Firebase config (from Terraform outputs) ---
+      // --- Config (your active web app) ---
       const firebaseConfig = {
-  apiKey: "AIzaSyCyT1R-qx5aFCsizhRMeP1hz1pdJaLLjqk",
-  authDomain: "meal-planner-474313.firebaseapp.com",
-  projectId: "meal-planner-474313",
-  storageBucket: "meal-planner-474313.appspot.com",
-  messagingSenderId: "127147945973",
-  appId: "1:127147945973:web:e2bffc4a702705c463babc"
-};
+        apiKey: "AIzaSyCyT1R-qx5aFCsizhRMeP1hz1pdJaLLjqk",
+        authDomain: "meal-planner-474313.firebaseapp.com",
+        projectId: "meal-planner-474313",
+        storageBucket: "meal-planner-474313.appspot.com",
+        messagingSenderId: "127147945973",
+        appId: "1:127147945973:web:e2bffc4a702705c463babc"
+      };
 
       // Init
       const app  = initializeApp(firebaseConfig);
@@ -88,6 +163,30 @@
       const who  = document.getElementById('who');
       const authBtn = document.getElementById('authBtn');
 
+      // Planner refs
+      const planDateEl   = document.getElementById('planDate');
+      const mealTypeEl   = document.getElementById('mealType');
+      const mealRecipeEl = document.getElementById('mealRecipe');
+      const mealGramsEl  = document.getElementById('mealGrams');
+      const addMealBtn   = document.getElementById('addMealBtn');
+      const mealsListEl  = document.getElementById('mealsList');
+      const totalsEl     = document.getElementById('totals');
+      const remainingEl  = document.getElementById('remaining');
+
+      const tKcalEl = document.getElementById('tKcal');
+      const tPEl    = document.getElementById('tP');
+      const tCEl    = document.getElementById('tC');
+      const tFEl    = document.getElementById('tF');
+      const saveTargetsBtn = document.getElementById('saveTargets');
+      const targetsSavedEl = document.getElementById('targetsSaved');
+
+      const suggestBtn = document.getElementById('suggestBtn');
+      const suggestOut = document.getElementById('suggestOut');
+      const applySuggestBtn = document.getElementById('applySuggestBtn');
+
+      // state for suggestion
+      let lastSuggestion = null; // {gramsK, gramsP, gramsC, gramsF, used: 'kcal'|'p'|'c'|'f'}
+
       function showMsg(text, ok=true){
         msg.textContent = text;
         msg.style.display = 'block';
@@ -96,7 +195,15 @@
         setTimeout(()=>msg.style.display='none', 3000);
       }
 
-      // Auth state → update UI
+      function todayStr() {
+        const d = new Date();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return `${d.getFullYear()}-${m}-${day}`;
+      }
+      planDateEl.value = todayStr();
+
+      // Auth state → update UI + reload planner
       onAuthStateChanged(auth, (user) => {
         if (user) {
           who.textContent = `Signed in as ${user.displayName || user.email}`;
@@ -105,32 +212,26 @@
           who.textContent = "Not signed in";
           authBtn.textContent = "Sign in with Google";
         }
+        loadMealsAndTargets(planDateEl.value || todayStr()); // refresh planner view
       });
 
-      // Sign in/out button
+      // Sign in/out button (popup → redirect fallback)
       authBtn.onclick = async () => {
-  try {
-    if (auth.currentUser) { await signOut(auth); return; }
-    await signInWithPopup(auth, provider);       // try popup first
-  } catch (e) {
-    console.warn("Popup sign-in failed:", e.code, e.message);
-    // common codes: 'auth/popup-blocked', 'auth/popup-closed-by-user'
-    // Fallback that always works (page will redirect to Google then back):
-    try {
-      const { signInWithRedirect } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
-      await signInWithRedirect(auth, provider);
-    } catch (e2) {
-      console.error("Redirect sign-in failed:", e2.code, e2.message);
-      showMsg(`Auth error: ${e.code || e2.code || 'unknown'}.`, false);
-    }
-  }
-};
+        try {
+          if (auth.currentUser) { await signOut(auth); return; }
+          await signInWithPopup(auth, provider);
+        } catch (e) {
+          console.warn("Popup sign-in failed:", e.code, e.message);
+          const { signInWithRedirect } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+          await signInWithRedirect(auth, provider);
+        }
+      };
 
-      // Load last 10
+      // Load last 10 recipes (list)
       async function loadRecent() {
         list.innerHTML = '<li style="color:#777">Loading…</li>';
-        const q = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
-        const snap = await getDocs(q);
+        const qy = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
+        const snap = await getDocs(qy);
         list.innerHTML = '';
         if (snap.empty) {
           list.innerHTML = '<li style="color:#777">No recipes yet.</li>';
@@ -171,21 +272,221 @@
             carbsPer100:    carbs,
             fatPer100:      fat,
             createdAt:      serverTimestamp(),
-            ownerUid:       auth.currentUser?.uid || null  // rules use this
+            ownerUid:       auth.currentUser?.uid || null
           });
           form.reset();
           showMsg('Recipe saved!');
           await loadRecent();
+          await fillRecipeSelect(); // keep planner dropdown fresh
         } catch (err) {
           console.error(err);
-          // If rules block writes when signed-out or not owner:
           const denied = err?.code === 'permission-denied';
           showMsg(denied ? 'Permission denied — sign in first.' : 'Failed to save recipe.', false);
         }
       });
 
-      // initial load
+      // ---------- Planner: recipes select ----------
+      async function fillRecipeSelect() {
+        mealRecipeEl.innerHTML = `<option disabled selected>Loading recipes…</option>`;
+        const qy = query(collection(db,'recipes'), orderBy('createdAt','desc'));
+        const snap = await getDocs(qy);
+        mealRecipeEl.innerHTML = "";
+        snap.forEach(s => {
+          const r = s.data();
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = r.name;
+          opt.dataset.kcal = r.caloriesPer100 ?? r.calories ?? 0;
+          opt.dataset.p    = r.proteinPer100 ?? 0;
+          opt.dataset.c    = r.carbsPer100 ?? 0;
+          opt.dataset.f    = r.fatPer100 ?? 0;
+          mealRecipeEl.appendChild(opt);
+        });
+        if (!mealRecipeEl.value && mealRecipeEl.firstChild) {
+          mealRecipeEl.firstChild.selected = true;
+        }
+      }
+
+      // ---------- Planner: load/save targets & meals ----------
+      planDateEl.addEventListener('change', () => loadMealsAndTargets(planDateEl.value));
+
+      saveTargetsBtn.addEventListener('click', async () => {
+        if (!auth.currentUser) { showMsg('Sign in first.', false); return; }
+        const dateStr = planDateEl.value || todayStr();
+        const dayRef = doc(db, 'plans', auth.currentUser.uid, 'days', dateStr);
+        const targets = {
+          kcal: Number(tKcalEl.value)||0,
+          p:    Number(tPEl.value)||0,
+          c:    Number(tCEl.value)||0,
+          f:    Number(tFEl.value)||0,
+          updatedAt: serverTimestamp()
+        };
+        await setDoc(dayRef, { targets }, { merge: true });
+        targetsSavedEl.style.display = 'block';
+        setTimeout(()=>targetsSavedEl.style.display='none', 2000);
+        await loadMealsAndTargets(dateStr); // refresh remaining
+      });
+
+      let currentTotals = { kcal:0, p:0, c:0, f:0 };
+      let currentRemaining = { kcal:0, p:0, c:0, f:0 };
+
+      async function loadMealsAndTargets(dateStr) {
+        mealsListEl.innerHTML = '<li style="color:#777">Loading…</li>';
+        if (!auth.currentUser) {
+          mealsListEl.innerHTML = '<li>Sign in to view your plan.</li>';
+          totalsEl.textContent='Totals: —';
+          remainingEl.textContent='Remaining: —';
+          return;
+        }
+
+        // 1) Load targets
+        const dayRef = doc(db, 'plans', auth.currentUser.uid, 'days', dateStr);
+        const daySnap = await getDoc(dayRef);
+        if (daySnap.exists() && daySnap.data().targets) {
+          const t = daySnap.data().targets;
+          tKcalEl.value = t.kcal ?? tKcalEl.value;
+          tPEl.value    = t.p ?? tPEl.value;
+          tCEl.value    = t.c ?? tCEl.value;
+          tFEl.value    = t.f ?? tFEl.value;
+        }
+
+        // 2) Load meals & compute totals
+        const mealsCol = collection(db, 'plans', auth.currentUser.uid, 'days', dateStr, 'meals');
+        const snap = await getDocs(query(mealsCol, orderBy('createdAt')));
+        mealsListEl.innerHTML = '';
+        let kcal=0, p=0, c=0, f=0;
+
+        snap.forEach(s => {
+          const m = s.data();
+          const grams = Number(m.grams)||0;
+          kcal += (m.per100?.kcal||0) * grams/100;
+          p    += (m.per100?.p||0)    * grams/100;
+          c    += (m.per100?.c||0)    * grams/100;
+          f    += (m.per100?.f||0)    * grams/100;
+
+          const li = document.createElement('li');
+          li.style.marginBottom = '.4rem';
+          li.textContent = `${m.mealType}: ${m.recipeName} — ${grams} g`;
+          mealsListEl.appendChild(li);
+        });
+
+        currentTotals = { kcal: Math.round(kcal), p: +p.toFixed(1), c: +c.toFixed(1), f: +f.toFixed(1) };
+        totalsEl.textContent = `Totals: kcal ${currentTotals.kcal} · P ${currentTotals.p}g · C ${currentTotals.c}g · F ${currentTotals.f}g`;
+
+        // 3) Remaining
+        const rK = Number(tKcalEl.value) - kcal;
+        const rP = Number(tPEl.value)    - p;
+        const rC = Number(tCEl.value)    - c;
+        const rF = Number(tFEl.value)    - f;
+
+        const overK = rK < 0, overP = rP < 0, overC = rC < 0, overF = rF < 0;
+        currentRemaining = {
+          kcal: Math.max(0, Math.round(rK)),
+          p:    Math.max(0, +rP.toFixed(1)),
+          c:    Math.max(0, +rC.toFixed(1)),
+          f:    Math.max(0, +rF.toFixed(1)),
+        };
+        remainingEl.style.color = (overK||overP||overC||overF) ? '#a50e0e' : '#137333';
+        remainingEl.textContent = `Remaining: kcal ${currentRemaining.kcal} · P ${currentRemaining.p}g · C ${currentRemaining.c}g · F ${currentRemaining.f}g`;
+
+        // clear previous suggestion
+        suggestOut.textContent = '';
+        applySuggestBtn.style.display = 'none';
+        lastSuggestion = null;
+      }
+
+      // Suggest grams given remaining and per100 of selected recipe
+      function round5(x){ return Math.max(0, Math.round(x/5)*5); }
+
+      suggestBtn.addEventListener('click', () => {
+        const opt = mealRecipeEl.selectedOptions[0];
+        if (!opt) { showMsg('Pick a recipe first.', false); return; }
+
+        const per = {
+          kcal: Number(opt.dataset.kcal)||0,
+          p:    Number(opt.dataset.p)||0,
+          c:    Number(opt.dataset.c)||0,
+          f:    Number(opt.dataset.f)||0
+        };
+
+        // Compute grams to meet remaining for each metric: grams = 100 * remaining / per100
+        const gramsK = per.kcal > 0 ? 100 * (currentRemaining.kcal) / per.kcal : NaN;
+        const gramsP = per.p    > 0 ? 100 * (currentRemaining.p)    / per.p    : NaN;
+        const gramsC = per.c    > 0 ? 100 * (currentRemaining.c)    / per.c    : NaN;
+        const gramsF = per.f    > 0 ? 100 * (currentRemaining.f)    / per.f    : NaN;
+
+        // Primary suggestion: kcal
+        let suggestion = isFinite(gramsK) ? round5(gramsK) : NaN;
+
+        // Build UI text
+        const parts = [];
+        if (isFinite(gramsK)) parts.push(`kcal ≈ ${round5(gramsK)}g`);
+        if (isFinite(gramsP)) parts.push(`P ≈ ${round5(gramsP)}g`);
+        if (isFinite(gramsC)) parts.push(`C ≈ ${round5(gramsC)}g`);
+        if (isFinite(gramsF)) parts.push(`F ≈ ${round5(gramsF)}g`);
+
+        if (!parts.length) {
+          suggestOut.textContent = 'This recipe has no per-100 values set — cannot suggest.';
+          applySuggestBtn.style.display = 'none';
+          lastSuggestion = null;
+          return;
+        }
+
+        suggestOut.textContent = `For "${opt.textContent}": ` + parts.join(' · ') + '  (rounded to 5g)';
+        if (isFinite(suggestion) && suggestion > 0) {
+          lastSuggestion = { grams: suggestion };
+          applySuggestBtn.style.display = 'inline-block';
+        } else {
+          applySuggestBtn.style.display = 'none';
+          lastSuggestion = null;
+        }
+      });
+
+      applySuggestBtn.addEventListener('click', () => {
+        if (!lastSuggestion) return;
+        mealGramsEl.value = String(lastSuggestion.grams);
+        showMsg(`Applied ${lastSuggestion.grams} g to grams field`);
+      });
+
+      // Add meal to plan
+      addMealBtn.addEventListener('click', async () => {
+        if (!auth.currentUser) { showMsg('Sign in first.', false); return; }
+        const dateStr = planDateEl.value || todayStr();
+        const recipeId = mealRecipeEl.value;
+        const grams = Number(mealGramsEl.value);
+        const mealType = mealTypeEl.value;
+
+        if (!recipeId || !grams || grams <= 0) {
+          showMsg('Pick a recipe and grams > 0', false);
+          return;
+        }
+
+        const opt = mealRecipeEl.selectedOptions[0];
+        const per100 = {
+          kcal: Number(opt.dataset.kcal)||0,
+          p:    Number(opt.dataset.p)||0,
+          c:    Number(opt.dataset.c)||0,
+          f:    Number(opt.dataset.f)||0
+        };
+
+        const mealsCol = collection(db, 'plans', auth.currentUser.uid, 'days', dateStr, 'meals');
+        await addDoc(mealsCol, {
+          mealType,
+          recipeId,
+          recipeName: opt.textContent,
+          grams,
+          per100,
+          createdAt: serverTimestamp()
+        });
+
+        showMsg('Added to plan');
+        await loadMealsAndTargets(dateStr);
+      });
+
+      // initial page loads
       loadRecent();
+      fillRecipeSelect();
+      loadMealsAndTargets(planDateEl.value);
     </script>
   </body>
 </html>
