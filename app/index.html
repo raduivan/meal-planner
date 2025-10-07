@@ -240,6 +240,9 @@
           who.textContent = "Not signed in";
           authBtn.textContent = "Sign in with Google";
         }
+        // Recipes + planner data depend on auth state, refresh them when it changes
+        loadRecent().catch(err => console.error('Failed to refresh recipes on auth change', err));
+        fillRecipeSelect().catch(err => console.error('Failed to refresh recipe select on auth change', err));
         loadMealsAndTargets(planDateEl.value || todayStr());
         loadWeekOverview(planDateEl.value || todayStr());
       });
@@ -261,24 +264,33 @@
       // Load last 10 recipes (list)
       async function loadRecent() {
         list.innerHTML = '<li style="color:#777">Loading…</li>';
-        const qy = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
-        const snap = await getDocs(qy);
-        list.innerHTML = '';
-        if (snap.empty) {
-          list.innerHTML = '<li style="color:#777">No recipes yet.</li>';
-          return;
+        try {
+          const qy = query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(10));
+          const snap = await getDocs(qy);
+          list.innerHTML = '';
+          if (snap.empty) {
+            list.innerHTML = '<li style="color:#777">No recipes yet.</li>';
+            return;
+          }
+          snap.forEach(docSnap => {
+            const r = docSnap.data();
+            const item = document.createElement('li');
+            item.style.marginBottom = '.4rem';
+            const kcal  = r.caloriesPer100 ?? r.calories ?? '—';
+            const prot  = r.proteinPer100 ?? '—';
+            const carbs = r.carbsPer100 ?? '—';
+            const fat   = r.fatPer100 ?? '—';
+            item.textContent = `${r.name} — ${kcal} kcal/100g · P ${prot}g · C ${carbs}g · F ${fat}g`;
+            list.appendChild(item);
+          });
+        } catch (err) {
+          console.error('Failed to load recipes', err);
+          const permission = err?.code === 'permission-denied';
+          const text = permission
+            ? 'Permission denied — sign in to view recipes.'
+            : 'Failed to load recipes.';
+          list.innerHTML = `<li style="color:#a50e0e">${text}</li>`;
         }
-        snap.forEach(docSnap => {
-          const r = docSnap.data();
-          const item = document.createElement('li');
-          item.style.marginBottom = '.4rem';
-          const kcal  = r.caloriesPer100 ?? r.calories ?? '—';
-          const prot  = r.proteinPer100 ?? '—';
-          const carbs = r.carbsPer100 ?? '—';
-          const fat   = r.fatPer100 ?? '—';
-          item.textContent = `${r.name} — ${kcal} kcal/100g · P ${prot}g · C ${carbs}g · F ${fat}g`;
-          list.appendChild(item);
-        });
       }
 
       // Create recipe
@@ -319,22 +331,31 @@
       // ---------- Planner: recipes select ----------
       async function fillRecipeSelect() {
         mealRecipeEl.innerHTML = `<option disabled selected>Loading recipes…</option>`;
-        const qy = query(collection(db,'recipes'), orderBy('createdAt','desc'));
-        const snap = await getDocs(qy);
-        mealRecipeEl.innerHTML = "";
-        snap.forEach(s => {
-          const r = s.data();
-          const opt = document.createElement('option');
-          opt.value = s.id;
-          opt.textContent = r.name;
-          opt.dataset.kcal = r.caloriesPer100 ?? r.calories ?? 0;
-          opt.dataset.p    = r.proteinPer100 ?? 0;
-          opt.dataset.c    = r.carbsPer100 ?? 0;
-          opt.dataset.f    = r.fatPer100 ?? 0;
-          mealRecipeEl.appendChild(opt);
-        });
-        if (!mealRecipeEl.value && mealRecipeEl.firstChild) {
-          mealRecipeEl.firstChild.selected = true;
+        try {
+          const qy = query(collection(db,'recipes'), orderBy('createdAt','desc'));
+          const snap = await getDocs(qy);
+          mealRecipeEl.innerHTML = "";
+          snap.forEach(s => {
+            const r = s.data();
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = r.name;
+            opt.dataset.kcal = r.caloriesPer100 ?? r.calories ?? 0;
+            opt.dataset.p    = r.proteinPer100 ?? 0;
+            opt.dataset.c    = r.carbsPer100 ?? 0;
+            opt.dataset.f    = r.fatPer100 ?? 0;
+            mealRecipeEl.appendChild(opt);
+          });
+          if (!mealRecipeEl.value && mealRecipeEl.firstChild) {
+            mealRecipeEl.firstChild.selected = true;
+          }
+        } catch (err) {
+          console.error('Failed to populate recipe dropdown', err);
+          const permission = err?.code === 'permission-denied';
+          const text = permission
+            ? 'Sign in to choose from your recipes'
+            : 'Failed to load recipes';
+          mealRecipeEl.innerHTML = `<option disabled selected>${text}</option>`;
         }
       }
 
