@@ -85,7 +85,8 @@
         const r = docSnap.data();
         const item = document.createElement('li');
         item.style.marginBottom = '.4rem';
-        item.textContent = `${r.name} — ${r.caloriesPer100} kcal/100g · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g`;
+        item.textContent = `${r.name} — ${r.caloriesPer100 ?? r.calories ?? '—'} kcal/100g · `
+  + `P ${r.proteinPer100 ?? '—'}g · C ${r.carbsPer100 ?? '—'}g · F ${r.fatPer100 ?? '—'}g`;
         list.appendChild(item);
       });
     }
