@@ -3,13 +3,10 @@ resource "google_project_service" "required" {
     "firebase.googleapis.com",
     "firestore.googleapis.com",
     "identitytoolkit.googleapis.com",
-    "run.googleapis.com",
-    "cloudfunctions.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "appengine.googleapis.com"
   ])
-
   project = "meal-planner-474313"
   service = each.key
 }
