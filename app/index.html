@@ -668,10 +668,6 @@
       }
 
       refreshWeekBtn.addEventListener('click', () => loadWeekOverview(planDateEl.value || todayStr()));
-
-      // ---------- Suggest helper ----------
-      function round5(x){ return Math.max(0, Math.round(x/5)*5); }
-
       suggestBtn.addEventListener('click', () => {
         const opt = mealRecipeEl.selectedOptions[0];
         if (!opt) { showMsg('Pick a recipe first.', false); return; }
