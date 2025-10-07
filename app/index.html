@@ -13,9 +13,10 @@
     <!-- Auth bar -->
     <div id="authbar" style="display:flex;justify-content:space-between;align-items:center;margin:.5rem 0 1rem;">
       <div id="who" style="color:#555">Not signed in</div>
-      <button id="authBtn" style="padding:.5rem .8rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
+    <button id="authBtn" type="button"
+        style="padding:.5rem .8rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
         Sign in with Google
-      </button>
+    </button>
     </div>
 
     <!-- Recipe form -->
@@ -244,16 +245,18 @@
       });
 
       // Sign in/out button (popup → redirect fallback)
-      authBtn.onclick = async () => {
+    authBtn.addEventListener('click', async (e) => {
+        e.preventDefault(); // never submit a form
         try {
-          if (auth.currentUser) { await signOut(auth); return; }
-          await signInWithPopup(auth, provider);
+            if (auth.currentUser) { await signOut(auth); return; }
+            await signInWithPopup(auth, provider);
         } catch (e) {
           console.warn("Popup sign-in failed:", e.code, e.message);
           const { signInWithRedirect } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
           await signInWithRedirect(auth, provider);
         }
-      };
+    });
+
 
       // Load last 10 recipes (list)
       async function loadRecent() {
