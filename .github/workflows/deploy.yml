@@ -1,0 +1,69 @@
+name: Terraform Deploy (local state via artifacts)
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'iac/**' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # OIDC
+
+env:
+  TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
+  TF_VAR_region: europe-west3
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Auth to GCP via OIDC
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ vars.WIF_POOL_ID }}/providers/${{ vars.WIF_PROVIDER_ID }}
+          service_account: ${{ vars.WIF_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.8.5 }
+
+      # Restore prior local state (if any)
+      - name: Download TF state artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate
+          path: iac
+        continue-on-error: true
+
+      - name: Terraform Init (local state)
+       .working-directory: iac
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: iac
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: iac
+        run: terraform apply -auto-approve tfplan
+
+      - name: Show Outputs
+        working-directory: iac
+        run: terraform output
+
+      # Save updated state for next runs
+      - name: Upload TF state artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate
+          path: |
+            iac/terraform.tfstate
+            iac/.terraform.lock.hcl
+          if-no-files-found: error
+          retention-days: 30
