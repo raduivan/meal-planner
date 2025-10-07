@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write   # OIDC
+  id-token: write
 
 env:
   TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
@@ -20,7 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Auth to GCP via OIDC
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ vars.WIF_POOL_ID }}/providers/${{ vars.WIF_PROVIDER_ID }}
@@ -33,7 +32,6 @@ jobs:
         with:
           terraform_version: 1.8.5
 
-      # Restore prior local state (if any)
       - name: Download TF state artifact
         uses: actions/download-artifact@v4
         with:
@@ -58,13 +56,4 @@ jobs:
         working-directory: iac
         run: terraform output
 
-      # Save updated state for next runs
-      - name: Upload TF state artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfstate
-          path: |
-            iac/terraform.tfstate
-            iac/.terraform.lock.hcl
-        if-no-files-found: error
-        retention-days: 30
+      - name: Upload TF state arti
