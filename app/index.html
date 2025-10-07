@@ -8,7 +8,7 @@
   <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.4;">
 
     <h1 style="margin-bottom:.25rem;">Meal Planner</h1>
-    <p style="margin-top:0;color:#555">Add recipes (per 100g), plan meals by grams, and track against daily targets.</p>
+    <p style="margin-top:0;color:#555">Add recipes (per 100g), plan meals by grams, track vs targets, and see your week.</p>
 
     <!-- Auth bar -->
     <div id="authbar" style="display:flex;justify-content:space-between;align-items:center;margin:.5rem 0 1rem;">
@@ -56,7 +56,7 @@
 
     <!-- Daily planner -->
     <h2 style="margin-top:2rem;">Daily planner</h2>
-    <div style="display:grid;gap:1rem;max-width:760px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
+    <div style="display:grid;gap:1rem;max-width:900px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
 
       <!-- Date + Targets -->
       <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:end">
@@ -126,7 +126,30 @@
       <div id="totals" style="font-weight:600;">Totals: kcal 0 · P 0g · C 0g · F 0g</div>
       <div id="remaining" style="font-weight:600;color:#555;">Remaining: kcal — · P —g · C —g · F —g</div>
 
+      <!-- Meals list (editable) -->
       <ul id="mealsList" style="padding-left:1rem;margin:0;"></ul>
+    </div>
+
+    <!-- Weekly overview -->
+    <h2 style="margin-top:2rem;">Weekly overview</h2>
+    <div style="display:grid;gap:.75rem;max-width:900px;">
+      <div style="color:#555">Week of <span id="weekRange"></span></div>
+      <div style="overflow:auto;border:1px solid #eee;border-radius:12px;">
+        <table style="width:100%; border-collapse:collapse; min-width:720px;">
+          <thead style="background:#fafafa;">
+            <tr>
+              <th style="text-align:left;padding:.6rem;border-bottom:1px solid #eee;">Date</th>
+              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">kcal</th>
+              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">P (g)</th>
+              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">C (g)</th>
+              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">F (g)</th>
+              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">Remaining</th>
+            </tr>
+          </thead>
+          <tbody id="weekBody"></tbody>
+        </table>
+      </div>
+      <button id="refreshWeek" type="button" style="align-self:start;padding:.5rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">Refresh week</button>
     </div>
 
     <!-- Firebase -->
@@ -134,7 +157,7 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
       import {
         getFirestore, collection, addDoc, serverTimestamp,
-        query, orderBy, limit, getDocs, doc, setDoc, getDoc
+        query, orderBy, limit, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
       import {
         getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -180,12 +203,16 @@
       const saveTargetsBtn = document.getElementById('saveTargets');
       const targetsSavedEl = document.getElementById('targetsSaved');
 
+      // Suggest helper
       const suggestBtn = document.getElementById('suggestBtn');
       const suggestOut = document.getElementById('suggestOut');
       const applySuggestBtn = document.getElementById('applySuggestBtn');
+      let lastSuggestion = null;
 
-      // state for suggestion
-      let lastSuggestion = null; // {gramsK, gramsP, gramsC, gramsF, used: 'kcal'|'p'|'c'|'f'}
+      // Weekly overview refs
+      const weekRangeEl = document.getElementById('weekRange');
+      const weekBodyEl  = document.getElementById('weekBody');
+      const refreshWeekBtn = document.getElementById('refreshWeek');
 
       function showMsg(text, ok=true){
         msg.textContent = text;
@@ -203,7 +230,7 @@
       }
       planDateEl.value = todayStr();
 
-      // Auth state → update UI + reload planner
+      // Auth state → update UI + reload views
       onAuthStateChanged(auth, (user) => {
         if (user) {
           who.textContent = `Signed in as ${user.displayName || user.email}`;
@@ -212,7 +239,8 @@
           who.textContent = "Not signed in";
           authBtn.textContent = "Sign in with Google";
         }
-        loadMealsAndTargets(planDateEl.value || todayStr()); // refresh planner view
+        loadMealsAndTargets(planDateEl.value || todayStr());
+        loadWeekOverview(planDateEl.value || todayStr());
       });
 
       // Sign in/out button (popup → redirect fallback)
@@ -307,8 +335,11 @@
         }
       }
 
-      // ---------- Planner: load/save targets & meals ----------
-      planDateEl.addEventListener('change', () => loadMealsAndTargets(planDateEl.value));
+      // ---------- Planner: targets & meals ----------
+      planDateEl.addEventListener('change', () => {
+        loadMealsAndTargets(planDateEl.value);
+        loadWeekOverview(planDateEl.value);
+      });
 
       saveTargetsBtn.addEventListener('click', async () => {
         if (!auth.currentUser) { showMsg('Sign in first.', false); return; }
@@ -324,7 +355,8 @@
         await setDoc(dayRef, { targets }, { merge: true });
         targetsSavedEl.style.display = 'block';
         setTimeout(()=>targetsSavedEl.style.display='none', 2000);
-        await loadMealsAndTargets(dateStr); // refresh remaining
+        await loadMealsAndTargets(dateStr);
+        await loadWeekOverview(dateStr);
       });
 
       let currentTotals = { kcal:0, p:0, c:0, f:0 };
@@ -364,9 +396,69 @@
           c    += (m.per100?.c||0)    * grams/100;
           f    += (m.per100?.f||0)    * grams/100;
 
+          // Row with inline grams edit + save + delete
           const li = document.createElement('li');
           li.style.marginBottom = '.4rem';
-          li.textContent = `${m.mealType}: ${m.recipeName} — ${grams} g`;
+          li.style.display = 'flex';
+          li.style.gap = '.5rem';
+          li.style.alignItems = 'center';
+
+          const label = document.createElement('span');
+          label.textContent = `${m.mealType}: ${m.recipeName} —`;
+
+          const gramsInput = document.createElement('input');
+          gramsInput.type = 'number';
+          gramsInput.min = '1';
+          gramsInput.step = '1';
+          gramsInput.value = String(grams);
+          gramsInput.style.width = '90px';
+          gramsInput.style.padding = '.3rem';
+          gramsInput.style.border = '1px solid #ddd';
+          gramsInput.style.borderRadius = '8px';
+
+          const gSuffix = document.createElement('span');
+          gSuffix.textContent = 'g';
+
+          const saveBtn = document.createElement('button');
+          saveBtn.textContent = 'Save';
+          saveBtn.style.padding = '.3rem .6rem';
+          saveBtn.style.border = '0';
+          saveBtn.style.borderRadius = '8px';
+          saveBtn.style.background = '#137333';
+          saveBtn.style.color = 'white';
+          saveBtn.style.cursor = 'pointer';
+
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.style.padding = '.3rem .6rem';
+          delBtn.style.border = '0';
+          delBtn.style.borderRadius = '8px';
+          delBtn.style.background = '#a50e0e';
+          delBtn.style.color = 'white';
+          delBtn.style.cursor = 'pointer';
+
+          // handlers
+          saveBtn.onclick = async () => {
+            const newGrams = Number(gramsInput.value);
+            if (!newGrams || newGrams <= 0) { showMsg('Grams must be > 0', false); return; }
+            await updateDoc(s.ref, { grams: newGrams });
+            showMsg('Updated grams');
+            await loadMealsAndTargets(dateStr);
+            await loadWeekOverview(dateStr);
+          };
+
+          delBtn.onclick = async () => {
+            await deleteDoc(s.ref);
+            showMsg('Deleted meal');
+            await loadMealsAndTargets(dateStr);
+            await loadWeekOverview(dateStr);
+          };
+
+          li.appendChild(label);
+          li.appendChild(gramsInput);
+          li.appendChild(gSuffix);
+          li.appendChild(saveBtn);
+          li.appendChild(delBtn);
           mealsListEl.appendChild(li);
         });
 
@@ -409,16 +501,13 @@
           f:    Number(opt.dataset.f)||0
         };
 
-        // Compute grams to meet remaining for each metric: grams = 100 * remaining / per100
         const gramsK = per.kcal > 0 ? 100 * (currentRemaining.kcal) / per.kcal : NaN;
         const gramsP = per.p    > 0 ? 100 * (currentRemaining.p)    / per.p    : NaN;
         const gramsC = per.c    > 0 ? 100 * (currentRemaining.c)    / per.c    : NaN;
         const gramsF = per.f    > 0 ? 100 * (currentRemaining.f)    / per.f    : NaN;
 
-        // Primary suggestion: kcal
         let suggestion = isFinite(gramsK) ? round5(gramsK) : NaN;
 
-        // Build UI text
         const parts = [];
         if (isFinite(gramsK)) parts.push(`kcal ≈ ${round5(gramsK)}g`);
         if (isFinite(gramsP)) parts.push(`P ≈ ${round5(gramsP)}g`);
@@ -481,12 +570,139 @@
 
         showMsg('Added to plan');
         await loadMealsAndTargets(dateStr);
+        await loadWeekOverview(dateStr);
       });
 
-      // initial page loads
-      loadRecent();
-      fillRecipeSelect();
-      loadMealsAndTargets(planDateEl.value);
+      // ---------- Weekly overview ----------
+      function dateFromISO(s){ const [Y,M,D]=s.split('-').map(Number); return new Date(Y, M-1, D); }
+      function isoFromDate(d){ const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
+      function weekRangeAround(dateStr){
+        // Monday as first day of week
+        const d = dateFromISO(dateStr);
+        const day = (d.getDay()+6)%7; // 0=Mon ... 6=Sun
+        const monday = new Date(d); monday.setDate(d.getDate()-day);
+        const days = Array.from({length:7}, (_,i)=>{ const x=new Date(monday); x.setDate(monday.getDate()+i); return x; });
+        return days;
+      }
+
+      async function loadWeekOverview(anchorDateStr){
+        weekBodyEl.innerHTML = '';
+        if (!auth.currentUser) { weekRangeEl.textContent='—'; return; }
+
+        const days = weekRangeAround(anchorDateStr || todayStr());
+        weekRangeEl.textContent = `${isoFromDate(days[0])} — ${isoFromDate(days[6])}`;
+
+        for (const d of days){
+          const dateStr = isoFromDate(d);
+          const dayRef = doc(db, 'plans', auth.currentUser.uid, 'days', dateStr);
+          const daySnap = await getDoc(dayRef);
+          const targets = daySnap.exists() && daySnap.data().targets ? daySnap.data().targets : {kcal:0,p:0,c:0,f:0};
+
+          // sum meals
+          const mealsCol = collection(db, 'plans', auth.currentUser.uid, 'days', dateStr, 'meals');
+          const snap = await getDocs(mealsCol);
+          let kcal=0,p=0,c=0,f=0;
+          snap.forEach(s=>{
+            const m=s.data(); const g=Number(m.grams)||0;
+            kcal += (m.per100?.kcal||0)*g/100;
+            p    += (m.per100?.p||0)*g/100;
+            c    += (m.per100?.c||0)*g/100;
+            f    += (m.per100?.f||0)*g/100;
+          });
+
+          const rem = {
+            kcal: Math.max(0, Math.round((targets.kcal||0) - kcal)),
+            p:    Math.max(0, +((targets.p||0) - p).toFixed(1)),
+            c:    Math.max(0, +((targets.c||0) - c).toFixed(1)),
+            f:    Math.max(0, +((targets.f||0) - f).toFixed(1)),
+          };
+
+          const tr = document.createElement('tr');
+          const overAny = (targets.kcal||0) && kcal > targets.kcal
+                       || (targets.p||0) && p > targets.p
+                       || (targets.c||0) && c > targets.c
+                       || (targets.f||0) && f > targets.f;
+          const td = (txt, right=false) => {
+            const cell = document.createElement('td');
+            cell.style.padding = '.5rem .6rem';
+            cell.style.borderBottom = '1px solid #f1f1f1';
+            cell.style.textAlign = right ? 'right' : 'left';
+            cell.textContent = txt;
+            return cell;
+          };
+
+          tr.appendChild(td(dateStr, false));
+          tr.appendChild(td(String(Math.round(kcal)), true));
+          tr.appendChild(td(p.toFixed(1), true));
+          tr.appendChild(td(c.toFixed(1), true));
+          tr.appendChild(td(f.toFixed(1), true));
+          const remCell = td(`k ${rem.kcal} · P ${rem.p} · C ${rem.c} · F ${rem.f}`, true);
+          remCell.style.color = overAny ? '#a50e0e' : '#137333';
+          tr.appendChild(remCell);
+          weekBodyEl.appendChild(tr);
+        }
+      }
+
+      refreshWeekBtn.addEventListener('click', () => loadWeekOverview(planDateEl.value || todayStr()));
+
+      // ---------- Suggest helper ----------
+      function round5(x){ return Math.max(0, Math.round(x/5)*5); }
+
+      suggestBtn.addEventListener('click', () => {
+        const opt = mealRecipeEl.selectedOptions[0];
+        if (!opt) { showMsg('Pick a recipe first.', false); return; }
+
+        const per = {
+          kcal: Number(opt.dataset.kcal)||0,
+          p:    Number(opt.dataset.p)||0,
+          c:    Number(opt.dataset.c)||0,
+          f:    Number(opt.dataset.f)||0
+        };
+
+        const gramsK = per.kcal > 0 ? 100 * (currentRemaining.kcal) / per.kcal : NaN;
+        const gramsP = per.p    > 0 ? 100 * (currentRemaining.p)    / per.p    : NaN;
+        const gramsC = per.c    > 0 ? 100 * (currentRemaining.c)    / per.c    : NaN;
+        const gramsF = per.f    > 0 ? 100 * (currentRemaining.f)    / per.f    : NaN;
+
+        let suggestion = isFinite(gramsK) ? round5(gramsK) : NaN;
+
+        const parts = [];
+        if (isFinite(gramsK)) parts.push(`kcal ≈ ${round5(gramsK)}g`);
+        if (isFinite(gramsP)) parts.push(`P ≈ ${round5(gramsP)}g`);
+        if (isFinite(gramsC)) parts.push(`C ≈ ${round5(gramsC)}g`);
+        if (isFinite(gramsF)) parts.push(`F ≈ ${round5(gramsF)}g`);
+
+        if (!parts.length) {
+          suggestOut.textContent = 'This recipe has no per-100 values set — cannot suggest.';
+          applySuggestBtn.style.display = 'none';
+          lastSuggestion = null;
+          return;
+        }
+
+        suggestOut.textContent = `For "${opt.textContent}": ` + parts.join(' · ') + '  (rounded to 5g)';
+        if (isFinite(suggestion) && suggestion > 0) {
+          lastSuggestion = { grams: suggestion };
+          applySuggestBtn.style.display = 'inline-block';
+        } else {
+          applySuggestBtn.style.display = 'none';
+          lastSuggestion = null;
+        }
+      });
+
+      applySuggestBtn.addEventListener('click', () => {
+        if (!lastSuggestion) return;
+        mealGramsEl.value = String(lastSuggestion.grams);
+        showMsg(`Applied ${lastSuggestion.grams} g to grams field`);
+      });
+
+      // ---------- Initial loads ----------
+      async function bootstrap(){
+        await loadRecent();
+        await fillRecipeSelect();
+        await loadMealsAndTargets(planDateEl.value);
+        await loadWeekOverview(planDateEl.value);
+      }
+      bootstrap();
     </script>
   </body>
 </html>
