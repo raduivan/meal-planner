@@ -49,8 +49,12 @@ service cloud.firestore {
       // Only signed-in users, and they must set ownerUid to themselves
       allow create: if createsOwned() && validRecipe(request.resource.data);
 
-      // Only the owner can update/delete
-      allow update, delete: if isOwner() && validRecipe(request.resource.data);
+      // Only the owner can update (ownerUid stays fixed) or delete
+      allow update: if isOwner()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && validRecipe(request.resource.data);
+
+      allow delete: if isOwner();
     }
 
     // ---------- Per-user plans ----------
