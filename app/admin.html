@@ -78,7 +78,6 @@
       getFirestore, collection, addDoc, serverTimestamp,
       query, orderBy, limit, getDocs
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
       getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -142,20 +141,26 @@
     const recipesList=$('recipesList');
     async function loadRecipes(){
       recipesList.innerHTML = '<li style="color:#777">Loading…</li>';
-      const snap = await getDocs(query(
-        collection(db,'recipes'),
-        where('fromIngredients','==', true),
-        orderBy('createdAt','desc'),
-        limit(20)
-      ));
-      recipesList.innerHTML='';
-      if (snap.empty){ recipesList.innerHTML='<li style="color:#777">No recipes yet.</li>'; return; }
-      snap.forEach(s=>{
-        const r=s.data();
-        const li=document.createElement('li');
-        li.textContent=`${r.name} — ${r.caloriesPer100} kcal/100g · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g (from ingredients)`;
-        recipesList.appendChild(li);
-      });
+      try {
+        const snap = await getDocs(query(
+          collection(db,'recipes'),
+          orderBy('createdAt','desc'),
+          limit(20)
+        ));
+        const rows = snap.docs
+          .map(doc => doc.data())
+          .filter(r => r.fromIngredients === true);
+        recipesList.innerHTML='';
+        if (!rows.length){ recipesList.innerHTML='<li style="color:#777">No recipes yet.</li>'; return; }
+        rows.forEach(r=>{
+          const li=document.createElement('li');
+          li.textContent=`${r.name} — ${r.caloriesPer100} kcal/100g · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g (from ingredients)`;
+          recipesList.appendChild(li);
+        });
+      } catch (err) {
+        console.error('Failed to load recipes', err);
+        recipesList.innerHTML = '<li style="color:#a50e0e">Failed to load recipes.</li>';
+      }
     }
 
     // From-ingredients builder
