@@ -105,7 +105,6 @@
       getFirestore, collection, addDoc, serverTimestamp,
       query, orderBy, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
       getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -152,19 +151,33 @@
     // Recipes dropdown (ingredients-only)
     async function fillRecipeSelect(){
       mealRecipeEl.innerHTML='<option disabled selected>Loading…</option>';
-      const snap=await getDocs(query(
-        collection(db,'recipes'),
-        where('fromIngredients','==', true),
-        orderBy('createdAt','desc')
-      ));
-      mealRecipeEl.innerHTML='';
-      snap.forEach(s=>{
-        const r=s.data(); const o=document.createElement('option');
-        o.value=s.id; o.textContent=r.name;
-        o.dataset.kcal=r.caloriesPer100||0; o.dataset.p=r.proteinPer100||0; o.dataset.c=r.carbsPer100||0; o.dataset.f=r.fatPer100||0;
-        mealRecipeEl.appendChild(o);
-      });
-      if(!mealRecipeEl.value && mealRecipeEl.firstChild) mealRecipeEl.firstChild.selected=true;
+      try {
+        const snap=await getDocs(query(
+          collection(db,'recipes'),
+          orderBy('createdAt','desc')
+        ));
+        mealRecipeEl.innerHTML='';
+        snap.forEach(s=>{
+          const r=s.data();
+          if (r.fromIngredients !== true) return;
+          const o=document.createElement('option');
+          o.value=s.id; o.textContent=r.name;
+          o.dataset.kcal=r.caloriesPer100||0; o.dataset.p=r.proteinPer100||0; o.dataset.c=r.carbsPer100||0; o.dataset.f=r.fatPer100||0;
+          mealRecipeEl.appendChild(o);
+        });
+        if(!mealRecipeEl.value && mealRecipeEl.firstChild) mealRecipeEl.firstChild.selected=true;
+        if(!mealRecipeEl.firstChild){
+          const opt=document.createElement('option');
+          opt.disabled=true; opt.selected=true; opt.textContent='No ingredient-based recipes yet.';
+          mealRecipeEl.appendChild(opt);
+        }
+      } catch (err) {
+        console.error('Failed to load recipes', err);
+        mealRecipeEl.innerHTML='';
+        const opt=document.createElement('option');
+        opt.disabled=true; opt.selected=true; opt.textContent='Failed to load recipes';
+        mealRecipeEl.appendChild(opt);
+      }
     }
 
     // Targets save
