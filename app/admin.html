@@ -12,19 +12,25 @@
     input,select{padding:.55rem;border:1px solid #ddd;border-radius:10px}
     .grid2{display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr))}
     .row{display:flex;gap:.5rem;align-items:center}
-    a.top{color:#0b57d0;text-decoration:none;font-weight:600}
+    .tabbar{display:inline-flex;gap:.5rem;margin-bottom:.75rem}
+    .tab{display:inline-flex;align-items:center;justify-content:center;padding:.5rem 1rem;border-radius:999px;background:#eef3ff;color:#0b57d0;text-decoration:none;font-weight:600;box-shadow:0 0 0 1px #c7d3ff inset;transition:background .2s,color .2s,box-shadow .2s}
+    .tab:hover{background:#dbe4ff}
+    .tab-active{background:#0b57d0;color:#fff;box-shadow:0 0 0 1px #0b57d0 inset}
   </style>
 </head>
 <body>
-  <div class="row" style="justify-content:space-between;margin-bottom:1rem">
+  <div class="row" style="justify-content:space-between;margin-bottom:1rem;align-items:flex-start">
     <div>
+      <div class="tabbar">
+        <a class="tab" href="/index.html">Planner</a>
+        <a class="tab tab-active" href="/admin.html">Admin</a>
+      </div>
       <h1 style="margin:0">Admin</h1>
       <div style="color:#555">Ingredients & Recipes (ingredients-only)</div>
     </div>
     <div class="row" id="authbar" style="position:relative;z-index:10">
-      <a class="top" href="/index.html">Planner</a>
-      <div id="who" style="margin-left:1rem;color:#555">Not signed in</div>
-      <button id="authBtn" type="button" class="btn" style="margin-left:.5rem">Sign in with Google</button>
+      <div id="who" style="color:#555">Not signed in</div>
+      <button id="authBtn" type="button" class="btn">Sign in with Google</button>
     </div>
   </div>
 
