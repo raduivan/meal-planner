@@ -336,7 +336,7 @@
       await loadMealsAndTargets(planDateEl.value);
       await loadWeekOverview(planDateEl.value);
     }
-    if (auth.currentUser) bootstrap(); else onAuthStateChanged(auth, ()=>{});
+    bootstrap();
   </script>
 </body>
 </html>
