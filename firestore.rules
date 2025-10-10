@@ -3,29 +3,31 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------- Helpers ----------
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner() {
-      return isSignedIn() && resource.data.ownerUid == request.auth.uid;
-    }
-
-    function createsOwned() {
-      return isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-    }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner()    { return isSignedIn() && resource.data.ownerUid == request.auth.uid; }
+    function createsOwned(){ return isSignedIn() && request.resource.data.ownerUid == request.auth.uid; }
 
     // Basic numeric checks
     function isNonNeg(n) { return n is number && n >= 0; }
     function isPos(n)    { return n is number && n > 0;  }
 
-    // Validate recipe doc (we only check fields we rely on)
+    // Validate recipe doc (keep lenient; we only check core fields used by planner UI)
     function validRecipe(d) {
       return d.name is string
         && ( !('caloriesPer100' in d) || isNonNeg(d.caloriesPer100) )
         && ( !('proteinPer100'  in d) || isNonNeg(d.proteinPer100)  )
         && ( !('carbsPer100'    in d) || isNonNeg(d.carbsPer100)    )
         && ( !('fatPer100'      in d) || isNonNeg(d.fatPer100)      );
+      // Note: extra fields like fromIngredients, totalGrams, ingredients[] are allowed.
+    }
+
+    // Validate ingredient doc (per 100 g)
+    function validIngredient(d) {
+      return d.name is string
+        && isNonNeg(d.caloriesPer100)
+        && isNonNeg(d.proteinPer100)
+        && isNonNeg(d.carbsPer100)
+        && isNonNeg(d.fatPer100);
     }
 
     // Validate meal doc (denormalized per100 snapshot + grams)
@@ -41,37 +43,38 @@ service cloud.firestore {
         && ( !('f'    in d.per100) || isNonNeg(d.per100.f)    );
     }
 
+    // ---------- Ingredients (public read, owned writes) ----------
+    match /ingredients/{id} {
+      allow read: if true;
+      allow create: if createsOwned() && validIngredient(request.resource.data);
+      allow update: if isOwner()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && validIngredient(request.resource.data);
+      allow delete: if isOwner();
+    }
+
     // ---------- Recipes (public read, owned writes) ----------
     match /recipes/{id} {
-      // Public read (switch to "request.auth != null" later if you want private reads)
       allow read: if true;
-
-      // Only signed-in users, and they must set ownerUid to themselves
       allow create: if createsOwned() && validRecipe(request.resource.data);
-
-      // Only the owner can update (ownerUid stays fixed) or delete
       allow update: if isOwner()
                     && request.resource.data.ownerUid == resource.data.ownerUid
                     && validRecipe(request.resource.data);
-
       allow delete: if isOwner();
     }
 
     // ---------- Per-user plans ----------
-    // Tree: plans/{uid}/days/{yyyy-mm-dd}/meals/{mealId}
+    // plans/{uid}/days/{yyyy-mm-dd}/meals/{mealId}
     match /plans/{uid} {
-      // Only the owner (uid == auth.uid) can see or write their subtree
       allow read, write: if isSignedIn() && request.auth.uid == uid;
 
       match /days/{date} {
         allow read, write: if isSignedIn() && request.auth.uid == uid;
 
         match /meals/{mealId} {
-          // All writes must be valid meal docs
           allow create, update: if isSignedIn()
                                 && request.auth.uid == uid
                                 && validMeal(request.resource.data);
-
           allow read, delete: if isSignedIn() && request.auth.uid == uid;
         }
       }
