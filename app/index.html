@@ -10,7 +10,6 @@
     .btn{padding:.55rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer}
     .btn-ghost{padding:.45rem .8rem;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
     input,select{padding:.55rem;border:1px solid #ddd;border-radius:10px}
-    .grid2{display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr))}
     .row{display:flex;gap:.5rem;align-items:center}
     a.top{color:#0b57d0;text-decoration:none;font-weight:600}
     table{width:100%;border-collapse:collapse;min-width:720px}
@@ -94,19 +93,19 @@
     <div class="row" style="gap:.6rem;flex-wrap:wrap">
       <button id="genShop" class="btn" type="button">Generate shopping list</button>
       <button id="downloadCSV" class="btn-ghost" type="button">Download CSV</button>
-      <div style="color:#555">Note: only recipes created “from ingredients” are included.</div>
+      <div style="color:#555">Note: includes only recipes created “from ingredients”.</div>
     </div>
     <div id="shopInfo" style="margin-top:.5rem;color:#555"></div>
     <ul id="shopList" style="padding-left:1rem;margin-top:.5rem"></ul>
   </div>
 
   <script type="module">
-    // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getFirestore, collection, addDoc, serverTimestamp,
-      query, orderBy, limit, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc
+      query, orderBy, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import {
       getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -128,9 +127,7 @@
     const $=(id)=>document.getElementById(id);
     const showMsg=(t,ok=true)=>{ const m=$('msg'); m.textContent=t; m.style.display='block'; m.style.background=ok?'#e8f0fe':'#fde7e9'; m.style.color=ok?'#174ea6':'#a50e0e'; setTimeout(()=>m.style.display='none',2500); };
     const todayStr=()=>{ const d=new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; };
-    const round1=(x)=>Math.round(x*10)/10;
 
-    // Auth UI
     $('authBtn').onclick = async () => {
       try { if (auth.currentUser) return void (await signOut(auth));
             await signInWithPopup(auth, provider);
@@ -142,7 +139,7 @@
       bootstrap();
     });
 
-    // Planner state/refs
+    // Planner refs/state
     const planDateEl=$('planDate'); planDateEl.value=todayStr();
     const mealTypeEl=$('mealType'), mealRecipeEl=$('mealRecipe'), mealGramsEl=$('mealGrams');
     const totalsEl=$('totals'), remainingEl=$('remaining'), mealsListEl=$('mealsList');
@@ -152,10 +149,14 @@
 
     planDateEl.addEventListener('change', ()=>{ loadMealsAndTargets(planDateEl.value); loadWeekOverview(planDateEl.value); });
 
-    // Recipes dropdown
+    // Recipes dropdown (ingredients-only)
     async function fillRecipeSelect(){
       mealRecipeEl.innerHTML='<option disabled selected>Loading…</option>';
-      const snap=await getDocs(query(collection(db,'recipes'), orderBy('createdAt','desc')));
+      const snap=await getDocs(query(
+        collection(db,'recipes'),
+        where('fromIngredients','==', true),
+        orderBy('createdAt','desc')
+      ));
       mealRecipeEl.innerHTML='';
       snap.forEach(s=>{
         const r=s.data(); const o=document.createElement('option');
@@ -177,7 +178,7 @@
       loadMealsAndTargets(dateStr); loadWeekOverview(dateStr);
     };
 
-    // Load meals + compute totals/remaining
+    // Load meals + totals/remaining
     async function loadMealsAndTargets(dateStr){
       mealsListEl.innerHTML='<li style="color:#777">Loading…</li>';
       const u=auth.currentUser; if(!u){ mealsListEl.innerHTML='<li>Sign in to view your plan.</li>'; totalsEl.textContent='Totals: —'; remainingEl.textContent='Remaining: —'; return; }
@@ -237,9 +238,9 @@
       const suggestion=isFinite(gramsK)?round5(gramsK):NaN;
       if(isFinite(suggestion)&&suggestion>0){ lastSuggestion={grams:suggestion}; applySuggestBtn.style.display='inline-block'; } else { applySuggestBtn.style.display='none'; lastSuggestion=null; }
     };
-    applySuggestBtn.onclick = ()=>{ if(!lastSuggestion) return; mealGramsEl.value=String(lastSuggestion.grams); showMsg(`Applied ${lastSuggestion.grams} g`); };
+    $('applySuggestBtn').onclick = ()=>{ if(!lastSuggestion) return; mealGramsEl.value=String(lastSuggestion.grams); showMsg(`Applied ${lastSuggestion.grams} g`); };
 
-    // Weekly overview
+    // Weekly overview helpers
     const weekRangeEl=$('weekRange'), weekBodyEl=$('weekBody'), refreshWeekBtn=$('refreshWeek');
     function dateFromISO(s){const [Y,M,D]=s.split('-').map(Number);return new Date(Y,M-1,D);}
     function isoFromDate(d){const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${d.getFullYear()}-${m}-${day}`;}
@@ -266,87 +267,62 @@
     }
     refreshWeekBtn.onclick=()=>loadWeekOverview(planDateEl.value||todayStr());
 
-    // Shopping list (aggregate ingredients from week's plans)
+    // Shopping list (aggregates only recipes with fromIngredients=true)
     const genShopBtn=$('genShop'), downloadBtn=$('downloadCSV'), shopListEl=$('shopList'), shopInfo=$('shopInfo');
-    let lastShopping = []; // [{name, grams}]
+    let lastShopping = [];
     async function generateShoppingList(){
       shopListEl.innerHTML='<li style="color:#777">Building…</li>';
       lastShopping = [];
       const u=auth.currentUser; if(!u){ shopInfo.textContent='Sign in to generate'; return; }
       const days=weekRangeAround(planDateEl.value||todayStr()).map(isoFromDate);
-      // cache recipes by id
       const recipeCache=new Map();
+      const needByName=new Map();
 
-      const needByName=new Map(); // name -> grams
       for(const dateStr of days){
         const snap=await getDocs(collection(db,'plans',u.uid,'days',dateStr,'meals'));
-        for(const docSnap of snap.docs){
-          const m=docSnap.data();
-          const g = +m.grams || 0;
-          if (!m.recipeId) continue;
-          // fetch recipe (once)
-          let rec = recipeCache.get(m.recipeId);
-          if (!rec){
-            const rSnap = await getDoc(doc(db,'recipes',m.recipeId));
-            rec = rSnap.exists() ? rSnap.data() : null;
-            recipeCache.set(m.recipeId, rec);
-          }
-          if (!rec || !rec.fromIngredients || !Array.isArray(rec.ingredients) || !rec.totalGrams) {
-            // Manual recipes can't be expanded into ingredients — skip.
-            continue;
-          }
-          const factor = g / rec.totalGrams; // scale recipe to meal grams
+        for(const d of snap.docs){
+          const m=d.data(); const g=+m.grams||0;
+          if(!m.recipeId) continue;
+          let rec=recipeCache.get(m.recipeId);
+          if(!rec){ const rSnap=await getDoc(doc(db,'recipes',m.recipeId)); rec=rSnap.exists()?rSnap.data():null; recipeCache.set(m.recipeId,rec); }
+          if(!rec || rec.fromIngredients!==true || !Array.isArray(rec.ingredients) || !rec.totalGrams) continue;
+          const factor = g / rec.totalGrams;
           rec.ingredients.forEach(it=>{
-            const add = (it.grams || 0) * factor;
-            if (add <= 0) return;
-            const key = it.name || it.ingredientId || 'Unknown';
-            needByName.set(key, (needByName.get(key)||0) + add);
+            const add=(it.grams||0)*factor;
+            if(add<=0) return;
+            const key=it.name || it.ingredientId || 'Unknown';
+            needByName.set(key,(needByName.get(key)||0)+add);
           });
         }
       }
-      // Build list & render
       shopListEl.innerHTML='';
-      lastShopping = Array.from(needByName.entries())
-        .map(([name, grams]) => ({ name, grams: Math.round(grams) }))
-        .sort((a,b)=>a.name.localeCompare(b.name));
-
-      if (lastShopping.length === 0){
-        shopListEl.innerHTML = '<li style="color:#777">No ingredient-based recipes in this week.</li>';
-        shopInfo.textContent = 'Tip: only recipes created “from ingredients” are included.';
-        return;
-      }
-      let totalItems=0;
+      lastShopping = Array.from(needByName.entries()).map(([name,grams])=>({name,grams:Math.round(grams)})).sort((a,b)=>a.name.localeCompare(b.name));
+      if(!lastShopping.length){ shopListEl.innerHTML='<li style="color:#777">No ingredient-based recipes in this week.</li>'; shopInfo.textContent=''; return; }
+      let total=0;
       lastShopping.forEach(it=>{
         const li=document.createElement('li');
-        const kg = (it.grams/1000);
-        li.textContent = `${it.name}: ${it.grams} g` + (kg>=1?` (${kg.toFixed(2)} kg)`:``);
-        shopListEl.appendChild(li);
-        totalItems++;
+        const kg=(it.grams/1000);
+        li.textContent=`${it.name}: ${it.grams} g`+(kg>=1?` (${kg.toFixed(2)} kg)`:``);
+        shopListEl.appendChild(li); total++;
       });
-      shopInfo.textContent = `Items: ${totalItems}. (Aggregated across ${days[0]}–${days[6]}.)`;
+      shopInfo.textContent=`Items: ${total}.`;
     }
     genShopBtn.onclick = generateShoppingList;
 
     // Download CSV
     downloadBtn.onclick = ()=>{
       if (!lastShopping.length) return showMsg('Generate first', false);
-      const rows = [['Ingredient','Grams','Kg']];
-      lastShopping.forEach(it=> rows.push([it.name, String(it.grams), (it.grams/1000).toFixed(3)]));
-      const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], {type:'text/csv'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'shopping-list.csv'; a.click();
-      URL.revokeObjectURL(url);
+      const rows=[['Ingredient','Grams','Kg'], ...lastShopping.map(it=>[it.name,String(it.grams),(it.grams/1000).toFixed(3)])];
+      const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='shopping-list.csv'; a.click(); URL.revokeObjectURL(url);
     };
 
-    // Bootstrap
     async function bootstrap(){
       await fillRecipeSelect();
       await loadMealsAndTargets(planDateEl.value);
       await loadWeekOverview(planDateEl.value);
     }
-    // If already signed in on load:
     if (auth.currentUser) bootstrap(); else onAuthStateChanged(auth, ()=>{});
   </script>
 </body>
