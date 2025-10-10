@@ -1,648 +1,353 @@
 <!doctype html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Meal Planner</title>
-  </head>
-  <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; line-height: 1.4;">
-
-    <h1 style="margin-bottom:.25rem;">Meal Planner</h1>
-    <p style="margin-top:0;color:#555">Ingredients → Recipes → Plan your day/week against targets.</p>
-
-    <!-- Auth bar -->
-    <div id="authbar" style="display:flex;justify-content:space-between;align-items:center;margin:.5rem 0 1rem;position:relative;z-index:10">
-      <div id="who" style="color:#555">Not signed in</div>
-      <button id="authBtn" type="button" style="padding:.5rem .8rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
-        Sign in with Google
-      </button>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Meal Planner — Planner</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:2rem;line-height:1.4}
+    .card{border:1px solid #eee;border-radius:12px;padding:1rem}
+    .btn{padding:.55rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer}
+    .btn-ghost{padding:.45rem .8rem;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
+    input,select{padding:.55rem;border:1px solid #ddd;border-radius:10px}
+    .grid2{display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .row{display:flex;gap:.5rem;align-items:center}
+    a.top{color:#0b57d0;text-decoration:none;font-weight:600}
+    table{width:100%;border-collapse:collapse;min-width:720px}
+    th,td{padding:.6rem;border-bottom:1px solid #eee}
+    th{text-align:left;background:#fafafa}
+  </style>
+</head>
+<body>
+  <div class="row" style="justify-content:space-between;margin-bottom:1rem">
+    <div>
+      <h1 style="margin:0">Planner</h1>
+      <div style="color:#555">Plan days & weeks. Generate a shopping list.</div>
     </div>
+    <div class="row" id="authbar" style="position:relative;z-index:10">
+      <a class="top" href="/admin.html">Admin</a>
+      <div id="who" style="margin-left:1rem;color:#555">Not signed in</div>
+      <button id="authBtn" type="button" class="btn" style="margin-left:.5rem">Sign in with Google</button>
+    </div>
+  </div>
 
-    <div id="msg" style="display:none;padding:.6rem .8rem;border-radius:10px;background:#e8f0fe;color:#174ea6;"></div>
+  <div id="msg" style="display:none;padding:.6rem .8rem;border-radius:10px;background:#e8f0fe;color:#174ea6;margin:.5rem 0"></div>
 
-    <!-- INGREDIENTS -->
-    <h2 style="margin-top:2rem;">Ingredients (per 100 g)</h2>
-    <div style="display:grid;gap:.75rem;max-width:680px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
-      <form id="ingredientForm" style="display:grid;gap:.75rem;">
-        <div style="display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr));">
-          <label>
-            <div>Name</div>
-            <input id="ingName" required placeholder="Chicken breast, cooked" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Calories / 100g</div>
-            <input id="ingKcal" type="number" min="0" step="1" required placeholder="165" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Protein g / 100g</div>
-            <input id="ingP" type="number" min="0" step="0.1" required placeholder="31" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Carbs g / 100g</div>
-            <input id="ingC" type="number" min="0" step="0.1" required placeholder="0" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Fat g / 100g</div>
-            <input id="ingF" type="number" min="0" step="0.1" required placeholder="3.6" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
+  <!-- Daily planner -->
+  <h2>Daily planner</h2>
+  <div class="card" style="max-width:900px;margin:.75rem 0;">
+    <div class="row" style="flex-wrap:wrap;gap:1rem">
+      <label>Date<br><input id="planDate" type="date"></label>
+      <div class="card" style="padding:.75rem">
+        <div style="font-weight:600;margin-bottom:.4rem;">Targets</div>
+        <div class="row" style="flex-wrap:wrap;gap:.6rem">
+          <label>kcal<br><input id="tKcal" type="number" min="0" step="1" value="2200" style="width:100px"></label>
+          <label>P (g)<br><input id="tP" type="number" min="0" step="1" value="150" style="width:100px"></label>
+          <label>C (g)<br><input id="tC" type="number" min="0" step="1" value="220" style="width:100px"></label>
+          <label>F (g)<br><input id="tF" type="number" min="0" step="1" value="70" style="width:100px"></label>
+          <button id="saveTargets" class="btn" type="button">Save targets</button>
         </div>
-        <button type="submit" style="justify-self:start;padding:.6rem 1rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
-          Save ingredient
-        </button>
-      </form>
-
-      <div>
-        <div style="font-weight:600;margin:.25rem 0;">Recent ingredients</div>
-        <ul id="ingredientsList" style="padding-left:1rem;margin:0;"></ul>
+        <div id="targetsSaved" style="display:none;margin-top:.4rem;color:#137333;">Targets saved ✓</div>
       </div>
     </div>
 
-    <!-- RECIPES -->
-    <h2 style="margin-top:2rem;">Recipes</h2>
-    <div style="display:grid;gap:1rem;max-width:900px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-        <button id="tabManual" type="button" style="padding:.4rem .8rem;border-radius:10px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:600">Manual entry</button>
-        <button id="tabFromIng" type="button" style="padding:.4rem .8rem;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer;font-weight:600">From ingredients</button>
-      </div>
+    <div class="row" style="flex-wrap:wrap;gap:.75rem;margin-top:.75rem">
+      <label>Meal<br>
+        <select id="mealType">
+          <option>breakfast</option><option>lunch</option><option>dinner</option><option>snack</option>
+        </select>
+      </label>
+      <label>Recipe<br><select id="mealRecipe" style="min-width:250px"></select></label>
+      <label>Grams<br><input id="mealGrams" type="number" min="1" step="1" value="100" style="width:120px"></label>
+      <button id="addMealBtn" class="btn">Add to day</button>
+    </div>
 
-      <!-- Manual recipe form (your old one) -->
-      <form id="recipeManual" style="display:grid;gap:.75rem;">
-        <label>
-          <div>Recipe name</div>
-          <input id="rNameM" required placeholder="Pasta Primavera" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-        </label>
-        <div style="display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr));">
-          <label>
-            <div>Calories / 100g</div>
-            <input id="rKcalM" type="number" min="0" step="1" required placeholder="550" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Protein g / 100g</div>
-            <input id="rPM" type="number" min="0" step="0.1" required placeholder="20" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Carbs g / 100g</div>
-            <input id="rCM" type="number" min="0" step="0.1" required placeholder="60" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-          <label>
-            <div>Fat g / 100g</div>
-            <input id="rFM" type="number" min="0" step="0.1" required placeholder="12" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-          </label>
-        </div>
-        <button type="submit" style="padding:.6rem 1rem;border:0;border-radius:10px;background:#0b57d0;color:white;font-weight:600;cursor:pointer;">
-          Save recipe
-        </button>
-      </form>
-
-      <!-- From ingredients builder -->
-      <form id="recipeFromIng" style="display:none;gap:.75rem;">
-        <label>
-          <div>Recipe name</div>
-          <input id="rNameI" required placeholder="Chicken & Rice Bowl" style="width:100%;padding:.6rem;border:1px solid #ddd;border-radius:10px;">
-        </label>
-
-        <div>
-          <div style="font-weight:600;margin:.25rem 0;">Ingredients in recipe</div>
-          <div id="rows" style="display:grid;gap:.5rem;"></div>
-          <button id="addRow" type="button" style="margin-top:.5rem;padding:.4rem .75rem;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">+ Add ingredient</button>
-        </div>
-
-        <div id="calcBox" style="padding:.75rem;border:1px solid #eee;border-radius:12px;background:#fafafa">
-          <div style="font-weight:600;margin-bottom:.3rem;">Calculated nutrition</div>
-          <div id="calcTotals" style="color:#444;">Totals (all grams): kcal 0 · P 0g · C 0g · F 0g · Total 0 g</div>
-          <div id="calcPer100" style="color:#174ea6;font-weight:600;">Per 100 g: kcal 0 · P 0g · C 0g · F 0g</div>
-        </div>
-
-        <button type="submit" style="padding:.6rem 1rem;border:0;border-radius:10px;background:#0b57d0;color:white;font-weight:600;cursor:pointer;">
-          Save recipe
-        </button>
-      </form>
-
-      <div>
-        <div style="font-weight:600;margin:.25rem 0;">Recent recipes</div>
-        <ul id="recipesList" style="padding-left:1rem;margin:0;"></ul>
+    <div class="card" style="background:#fafafa;margin-top:.6rem">
+      <div class="row" style="gap:.6rem;flex-wrap:wrap">
+        <button id="suggestBtn" type="button" class="btn" style="background:#155e75">Suggest grams (hit kcal)</button>
+        <div id="suggestOut" style="color:#444"></div>
+        <button id="applySuggestBtn" type="button" class="btn-ghost" style="display:none">Apply grams</button>
       </div>
     </div>
 
-    <!-- DAILY PLANNER + WEEKLY OVERVIEW (unchanged from your latest good version) -->
-    <h2 style="margin-top:2rem;">Daily planner</h2>
-    <div style="display:grid;gap:1rem;max-width:900px;margin:1rem 0;padding:1rem;border:1px solid #eee;border-radius:12px;">
+    <div id="totals" style="font-weight:600;margin-top:.5rem">Totals: kcal 0 · P 0g · C 0g · F 0g</div>
+    <div id="remaining" style="font-weight:600;color:#555">Remaining: kcal — · P —g · C —g · F —g</div>
+    <ul id="mealsList" style="padding-left:1rem;margin:0"></ul>
+  </div>
 
-      <!-- Date + Targets -->
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:end">
-        <label> Date<br>
-          <input id="planDate" type="date" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;">
-        </label>
-
-        <div style="padding:.75rem;border:1px solid #eee;border-radius:12px;">
-          <div style="font-weight:600;margin-bottom:.4rem;">Daily targets</div>
-          <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:end">
-            <label style="display:grid;">
-              <span>kcal</span>
-              <input id="tKcal" type="number" min="0" step="1" value="2200" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
-            </label>
-            <label style="display:grid;">
-              <span>P (g)</span>
-              <input id="tP" type="number" min="0" step="1" value="150" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
-            </label>
-            <label style="display:grid;">
-              <span>C (g)</span>
-              <input id="tC" type="number" min="0" step="1" value="220" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
-            </label>
-            <label style="display:grid;">
-              <span>F (g)</span>
-              <input id="tF" type="number" min="0" step="1" value="70" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:100px;">
-            </label>
-            <button id="saveTargets" type="button" style="padding:.55rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">Save targets</button>
-          </div>
-          <div id="targetsSaved" style="display:none;margin-top:.4rem;color:#137333;">Targets saved ✓</div>
-        </div>
-      </div>
-
-      <!-- Add meal row -->
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:end">
-        <label> Meal<br>
-          <select id="mealType" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;">
-            <option>breakfast</option>
-            <option>lunch</option>
-            <option>dinner</option>
-            <option>snack</option>
-          </select>
-        </label>
-        <label> Recipe<br>
-          <select id="mealRecipe" style="padding:.5rem;border:1px solid #ddd;border-radius:8px;min-width:250px;"></select>
-        </label>
-        <label> Grams<br>
-          <input id="mealGrams" type="number" min="1" step="1" value="100"
-                 style="padding:.5rem;border:1px solid #ddd;border-radius:8px;width:120px;">
-        </label>
-        <button id="addMealBtn" style="padding:.6rem 1rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">
-          Add to day
-        </button>
-      </div>
-
-      <!-- Suggest helper -->
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;background:#fafafa;border:1px dashed #ddd;padding:.75rem;border-radius:10px;">
-        <button id="suggestBtn" type="button" style="padding:.55rem .9rem;border:0;border-radius:10px;background:#155e75;color:#fff;font-weight:600;cursor:pointer">
-          Suggest grams (hit kcal)
-        </button>
-        <div id="suggestOut" style="color:#444;"></div>
-        <button id="applySuggestBtn" type="button" style="padding:.45rem .8rem;border:1px solid #ccc;border-radius:8px;background:#fff;color:#222;cursor:pointer;display:none;">
-          Apply grams
-        </button>
-      </div>
-
-      <div id="totals" style="font-weight:600;">Totals: kcal 0 · P 0g · C 0g · F 0g</div>
-      <div id="remaining" style="font-weight:600;color:#555;">Remaining: kcal — · P —g · C —g · F —g</div>
-      <ul id="mealsList" style="padding-left:1rem;margin:0;"></ul>
+  <!-- Weekly overview -->
+  <h2>Weekly overview</h2>
+  <div class="card" style="max-width:900px;margin:.75rem 0;">
+    <div style="color:#555;margin-bottom:.5rem">Week of <span id="weekRange"></span></div>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>Date</th><th style="text-align:right">kcal</th><th style="text-align:right">P</th><th style="text-align:right">C</th><th style="text-align:right">F</th><th style="text-align:right">Remaining</th></tr></thead>
+        <tbody id="weekBody"></tbody>
+      </table>
     </div>
+    <button id="refreshWeek" class="btn" type="button" style="margin-top:.5rem">Refresh week</button>
+  </div>
 
-    <!-- Weekly overview -->
-    <h2 style="margin-top:2rem;">Weekly overview</h2>
-    <div style="display:grid;gap:.75rem;max-width:900px;">
-      <div style="color:#555">Week of <span id="weekRange"></span></div>
-      <div style="overflow:auto;border:1px solid #eee;border-radius:12px;">
-        <table style="width:100%; border-collapse:collapse; min-width:720px;">
-          <thead style="background:#fafafa;">
-            <tr>
-              <th style="text-align:left;padding:.6rem;border-bottom:1px solid #eee;">Date</th>
-              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">kcal</th>
-              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">P (g)</th>
-              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">C (g)</th>
-              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">F (g)</th>
-              <th style="text-align:right;padding:.6rem;border-bottom:1px solid #eee;">Remaining</th>
-            </tr>
-          </thead>
-          <tbody id="weekBody"></tbody>
-        </table>
-      </div>
-      <button id="refreshWeek" type="button" style="align-self:start;padding:.5rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer">Refresh week</button>
+  <!-- Shopping list -->
+  <h2>Shopping list (for this week)</h2>
+  <div class="card" style="max-width:900px;margin:.75rem 0;">
+    <div class="row" style="gap:.6rem;flex-wrap:wrap">
+      <button id="genShop" class="btn" type="button">Generate shopping list</button>
+      <button id="downloadCSV" class="btn-ghost" type="button">Download CSV</button>
+      <div style="color:#555">Note: only recipes created “from ingredients” are included.</div>
     </div>
+    <div id="shopInfo" style="margin-top:.5rem;color:#555"></div>
+    <ul id="shopList" style="padding-left:1rem;margin-top:.5rem"></ul>
+  </div>
 
-    <!-- Firebase -->
-    <script type="module">
-      // Error surfacing
-      window.addEventListener('error', (e) => {
-        console.error('Global error:', e.message, e.error);
-        const el = document.getElementById('msg');
-        if (el) { el.textContent = `Error: ${e.message}`; el.style.display='block'; el.style.background='#fde7e9'; el.style.color='#a50e0e'; }
+  <script type="module">
+    // Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, serverTimestamp,
+      query, orderBy, limit, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyT1R-qx5aFCsizhRMeP1hz1pdJaLLjqk",
+      authDomain: "meal-planner-474313.firebaseapp.com",
+      projectId: "meal-planner-474313",
+      storageBucket: "meal-planner-474313.appspot.com",
+      messagingSenderId: "127147945973",
+      appId: "1:127147945973:web:e2bffc4a702705c463babc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const $=(id)=>document.getElementById(id);
+    const showMsg=(t,ok=true)=>{ const m=$('msg'); m.textContent=t; m.style.display='block'; m.style.background=ok?'#e8f0fe':'#fde7e9'; m.style.color=ok?'#174ea6':'#a50e0e'; setTimeout(()=>m.style.display='none',2500); };
+    const todayStr=()=>{ const d=new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; };
+    const round1=(x)=>Math.round(x*10)/10;
+
+    // Auth UI
+    $('authBtn').onclick = async () => {
+      try { if (auth.currentUser) return void (await signOut(auth));
+            await signInWithPopup(auth, provider);
+      } catch { const {signInWithRedirect}=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"); await signInWithRedirect(auth, provider); }
+    };
+    onAuthStateChanged(auth, (u)=> {
+      $('who').textContent = u ? `Signed in as ${u.displayName||u.email}` : 'Not signed in';
+      $('authBtn').textContent = u ? 'Sign out' : 'Sign in with Google';
+      bootstrap();
+    });
+
+    // Planner state/refs
+    const planDateEl=$('planDate'); planDateEl.value=todayStr();
+    const mealTypeEl=$('mealType'), mealRecipeEl=$('mealRecipe'), mealGramsEl=$('mealGrams');
+    const totalsEl=$('totals'), remainingEl=$('remaining'), mealsListEl=$('mealsList');
+    const tKcalEl=$('tKcal'), tPEl=$('tP'), tCEl=$('tC'), tFEl=$('tF'), saveTargetsBtn=$('saveTargets'), targetsSavedEl=$('targetsSaved');
+    const suggestBtn=$('suggestBtn'), suggestOut=$('suggestOut'), applySuggestBtn=$('applySuggestBtn');
+    let currentTotals={kcal:0,p:0,c:0,f:0}, currentRemaining={kcal:0,p:0,c:0,f:0}, lastSuggestion=null;
+
+    planDateEl.addEventListener('change', ()=>{ loadMealsAndTargets(planDateEl.value); loadWeekOverview(planDateEl.value); });
+
+    // Recipes dropdown
+    async function fillRecipeSelect(){
+      mealRecipeEl.innerHTML='<option disabled selected>Loading…</option>';
+      const snap=await getDocs(query(collection(db,'recipes'), orderBy('createdAt','desc')));
+      mealRecipeEl.innerHTML='';
+      snap.forEach(s=>{
+        const r=s.data(); const o=document.createElement('option');
+        o.value=s.id; o.textContent=r.name;
+        o.dataset.kcal=r.caloriesPer100||0; o.dataset.p=r.proteinPer100||0; o.dataset.c=r.carbsPer100||0; o.dataset.f=r.fatPer100||0;
+        mealRecipeEl.appendChild(o);
       });
-      window.addEventListener('unhandledrejection', (e) => {
-        console.error('Unhandled rejection:', e.reason);
-        const el = document.getElementById('msg');
-        if (el) { el.textContent = `Error: ${e.reason?.message || e.reason}`; el.style.display='block'; el.style.background='#fde7e9'; el.style.color='#a50e0e'; }
+      if(!mealRecipeEl.value && mealRecipeEl.firstChild) mealRecipeEl.firstChild.selected=true;
+    }
+
+    // Targets save
+    saveTargetsBtn.onclick = async ()=>{
+      const u=auth.currentUser; if(!u) return showMsg('Sign in first', false);
+      const dateStr=planDateEl.value||todayStr();
+      await setDoc(doc(db,'plans',u.uid,'days',dateStr), {
+        targets:{kcal:+tKcalEl.value||0,p:+tPEl.value||0,c:+tCEl.value||0,f:+tFEl.value||0,updatedAt:serverTimestamp()}
+      }, {merge:true});
+      targetsSavedEl.style.display='block'; setTimeout(()=>targetsSavedEl.style.display='none',1500);
+      loadMealsAndTargets(dateStr); loadWeekOverview(dateStr);
+    };
+
+    // Load meals + compute totals/remaining
+    async function loadMealsAndTargets(dateStr){
+      mealsListEl.innerHTML='<li style="color:#777">Loading…</li>';
+      const u=auth.currentUser; if(!u){ mealsListEl.innerHTML='<li>Sign in to view your plan.</li>'; totalsEl.textContent='Totals: —'; remainingEl.textContent='Remaining: —'; return; }
+      const dayRef=doc(db,'plans',u.uid,'days',dateStr); const daySnap=await getDoc(dayRef);
+      if (daySnap.exists() && daySnap.data().targets){ const t=daySnap.data().targets; tKcalEl.value=t.kcal??tKcalEl.value; tPEl.value=t.p??tPEl.value; tCEl.value=t.c??tCEl.value; tFEl.value=t.f??tFEl.value; }
+
+      const mealsCol=collection(db,'plans',u.uid,'days',dateStr,'meals');
+      const snap=await getDocs(query(mealsCol, orderBy('createdAt')));
+      mealsListEl.innerHTML=''; let kcal=0,p=0,c=0,f=0;
+      snap.forEach(s=>{
+        const m=s.data(); const g=+m.grams||0;
+        kcal+=(m.per100?.kcal||0)*g/100; p+=(m.per100?.p||0)*g/100; c+=(m.per100?.c||0)*g/100; f+=(m.per100?.f||0)*g/100;
+        const li=document.createElement('li'); li.className='row';
+        const label=document.createElement('span'); label.textContent=`${m.mealType}: ${m.recipeName} —`;
+        const gramsInput=document.createElement('input'); gramsInput.type='number'; gramsInput.min='1'; gramsInput.step='1'; gramsInput.value=String(g); gramsInput.style.width='90px';
+        const gSuffix=document.createElement('span'); gSuffix.textContent='g';
+        const saveBtn=document.createElement('button'); saveBtn.textContent='Save'; saveBtn.className='btn'; saveBtn.style.background='#137333';
+        const delBtn=document.createElement('button'); delBtn.textContent='Delete'; delBtn.className='btn'; delBtn.style.background='#a50e0e';
+        saveBtn.onclick=async()=>{ const ng=+gramsInput.value; if(!ng||ng<=0) return showMsg('Grams must be > 0',false); await updateDoc(s.ref,{grams:ng}); showMsg('Updated'); loadMealsAndTargets(dateStr); loadWeekOverview(dateStr); };
+        delBtn.onclick=async()=>{ await deleteDoc(s.ref); showMsg('Deleted'); loadMealsAndTargets(dateStr); loadWeekOverview(dateStr); };
+        li.append(label,gramsInput,gSuffix,saveBtn,delBtn); mealsListEl.appendChild(li);
       });
+      currentTotals={kcal:Math.round(kcal),p:+p.toFixed(1),c:+c.toFixed(1),f:+f.toFixed(1)};
+      totalsEl.textContent=`Totals: kcal ${currentTotals.kcal} · P ${currentTotals.p}g · C ${currentTotals.c}g · F ${currentTotals.f}g`;
+      const rK=+tKcalEl.value-kcal, rP=+tPEl.value-p, rC=+tCEl.value-c, rF=+tFEl.value-f;
+      const overAny = rK<0||rP<0||rC<0||rF<0;
+      currentRemaining={kcal:Math.max(0,Math.round(rK)),p:Math.max(0,+rP.toFixed(1)),c:Math.max(0,+rC.toFixed(1)),f:Math.max(0,+rF.toFixed(1))};
+      remainingEl.style.color=overAny?'#a50e0e':'#137333';
+      remainingEl.textContent=`Remaining: kcal ${currentRemaining.kcal} · P ${currentRemaining.p}g · C ${currentRemaining.c}g · F ${currentRemaining.f}g`;
+      suggestOut.textContent=''; applySuggestBtn.style.display='none'; lastSuggestion=null;
+    }
 
-      // Firebase SDKs
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      import {
-        getFirestore, collection, addDoc, serverTimestamp,
-        query, orderBy, limit, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc
-      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-      import {
-        getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
-      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    // Add meal
+    $('addMealBtn').onclick = async ()=>{
+      const u=auth.currentUser; if(!u) return showMsg('Sign in first', false);
+      const dateStr=planDateEl.value||todayStr();
+      const recipeId=mealRecipeEl.value; const grams=+mealGramsEl.value; const mealType=mealTypeEl.value;
+      if(!recipeId||!grams||grams<=0) return showMsg('Pick a recipe and grams > 0', false);
+      const opt=mealRecipeEl.selectedOptions[0];
+      const per100={kcal:+opt.dataset.kcal||0,p:+opt.dataset.p||0,c:+opt.dataset.c||0,f:+opt.dataset.f||0};
+      await addDoc(collection(db,'plans',u.uid,'days',dateStr,'meals'), { mealType, recipeId, recipeName:opt.textContent, grams, per100, createdAt:serverTimestamp() });
+      showMsg('Added'); loadMealsAndTargets(dateStr); loadWeekOverview(dateStr);
+    };
 
-      // Config
-      const firebaseConfig = {
-        apiKey: "AIzaSyCyT1R-qx5aFCsizhRMeP1hz1pdJaLLjqk",
-        authDomain: "meal-planner-474313.firebaseapp.com",
-        projectId: "meal-planner-474313",
-        storageBucket: "meal-planner-474313.appspot.com",
-        messagingSenderId: "127147945973",
-        appId: "1:127147945973:web:e2bffc4a702705c463babc"
-      };
+    // Suggest helper (kcal focus)
+    function round5(x){return Math.max(0,Math.round(x/5)*5);}
+    suggestBtn.onclick = ()=>{
+      const opt=mealRecipeEl.selectedOptions[0]; if(!opt) return showMsg('Pick a recipe', false);
+      const per={kcal:+opt.dataset.kcal||0,p:+opt.dataset.p||0,c:+opt.dataset.c||0,f:+opt.dataset.f||0};
+      const gramsK=per.kcal>0?100*(currentRemaining.kcal)/per.kcal:NaN;
+      const gramsP=per.p>0?100*(currentRemaining.p)/per.p:NaN;
+      const gramsC=per.c>0?100*(currentRemaining.c)/per.c:NaN;
+      const gramsF=per.f>0?100*(currentRemaining.f)/per.f:NaN;
+      const parts=[]; if(isFinite(gramsK))parts.push(`kcal ≈ ${round5(gramsK)}g`); if(isFinite(gramsP))parts.push(`P ≈ ${round5(gramsP)}g`); if(isFinite(gramsC))parts.push(`C ≈ ${round5(gramsC)}g`); if(isFinite(gramsF))parts.push(`F ≈ ${round5(gramsF)}g`);
+      if(!parts.length){ suggestOut.textContent='Recipe lacks per-100 values.'; applySuggestBtn.style.display='none'; return; }
+      suggestOut.textContent=`For "${opt.textContent}": ${parts.join(' · ')} (rounded to 5g)`;
+      const suggestion=isFinite(gramsK)?round5(gramsK):NaN;
+      if(isFinite(suggestion)&&suggestion>0){ lastSuggestion={grams:suggestion}; applySuggestBtn.style.display='inline-block'; } else { applySuggestBtn.style.display='none'; lastSuggestion=null; }
+    };
+    applySuggestBtn.onclick = ()=>{ if(!lastSuggestion) return; mealGramsEl.value=String(lastSuggestion.grams); showMsg(`Applied ${lastSuggestion.grams} g`); };
 
-      // Helpers
-      const $ = (id)=>document.getElementById(id);
-      const showMsg=(t,ok=true)=>{ const m=$('msg'); if(!m)return; m.textContent=t; m.style.display='block'; m.style.background=ok?'#e8f0fe':'#fde7e9'; m.style.color=ok?'#174ea6':'#a50e0e'; setTimeout(()=>m.style.display='none',3000); };
-      const todayStr=()=>{ const d=new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; };
-      const round1=(x)=>Math.round(x*10)/10;
-
-      // Init Firebase
-      const app  = initializeApp(firebaseConfig);
-      const db   = getFirestore(app);
-      const auth = getAuth(app);
-      const provider = new GoogleAuthProvider();
-
-      // Auth UI
-      const who=$('who'), authBtn=$('authBtn');
-      authBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        try {
-          if (auth.currentUser) { await signOut(auth); return; }
-          await signInWithPopup(auth, provider);
-        } catch (e) {
-          const { signInWithRedirect } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
-          await signInWithRedirect(auth, provider);
-        }
-      });
-
-      // INGREDIENTS logic
-      const ingredientForm=$('ingredientForm');
-      const ingredientsList=$('ingredientsList');
-
-      async function loadIngredientsList(limitN=20){
-        ingredientsList.innerHTML = '<li style="color:#777">Loading…</li>';
-        const qy = query(collection(db,'ingredients'), orderBy('createdAt','desc'), limit(limitN));
-        const snap = await getDocs(qy);
-        ingredientsList.innerHTML = '';
-        if (snap.empty){ ingredientsList.innerHTML = '<li style="color:#777">No ingredients yet.</li>'; return; }
-        snap.forEach(s=>{
-          const r=s.data();
-          const li=document.createElement('li');
-          li.style.marginBottom='.3rem';
-          li.textContent = `${r.name} — ${r.caloriesPer100} kcal · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g`;
-          ingredientsList.appendChild(li);
-        });
+    // Weekly overview
+    const weekRangeEl=$('weekRange'), weekBodyEl=$('weekBody'), refreshWeekBtn=$('refreshWeek');
+    function dateFromISO(s){const [Y,M,D]=s.split('-').map(Number);return new Date(Y,M-1,D);}
+    function isoFromDate(d){const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${d.getFullYear()}-${m}-${day}`;}
+    function weekRangeAround(dateStr){ const d=dateFromISO(dateStr); const day=(d.getDay()+6)%7; const mon=new Date(d); mon.setDate(d.getDate()-day); return Array.from({length:7},(_,i)=>{const x=new Date(mon); x.setDate(mon.getDate()+i); return x;}); }
+    async function loadWeekOverview(anchorDateStr){
+      weekBodyEl.innerHTML=''; const u=auth.currentUser; if(!u){ weekRangeEl.textContent='—'; return; }
+      const days=weekRangeAround(anchorDateStr||todayStr()); weekRangeEl.textContent=`${isoFromDate(days[0])} — ${isoFromDate(days[6])}`;
+      for(const d of days){
+        const dateStr=isoFromDate(d);
+        const dayRef=doc(db,'plans',u.uid,'days',dateStr);
+        const daySnap=await getDoc(dayRef);
+        const targets=daySnap.exists() && daySnap.data().targets ? daySnap.data().targets : {kcal:0,p:0,c:0,f:0};
+        const mealsCol=collection(db,'plans',u.uid,'days',dateStr,'meals');
+        const snap=await getDocs(mealsCol);
+        let kcal=0,p=0,c=0,f=0;
+        snap.forEach(s=>{ const m=s.data(); const g=+m.grams||0; kcal+=(m.per100?.kcal||0)*g/100; p+=(m.per100?.p||0)*g/100; c+=(m.per100?.c||0)*g/100; f+=(m.per100?.f||0)*g/100; });
+        const rem={kcal:Math.max(0,Math.round((targets.kcal||0)-kcal)),p:Math.max(0,+((targets.p||0)-p).toFixed(1)),c:Math.max(0,+((targets.c||0)-c).toFixed(1)),f:Math.max(0,+((targets.f||0)-f).toFixed(1))};
+        const tr=document.createElement('tr'); const overAny=((targets.kcal||0)&&kcal>targets.kcal)||((targets.p||0)&&p>targets.p)||((targets.c||0)&&c>targets.c)||((targets.f||0)&&f>targets.f);
+        const td=(t,r=false)=>{const c=document.createElement('td'); c.textContent=t; c.style.textAlign=r?'right':'left'; return c;};
+        tr.append(td(dateStr), td(String(Math.round(kcal)),true), td(p.toFixed(1),true), td(c.toFixed(1),true), td(f.toFixed(1),true));
+        const remCell=td(`k ${rem.kcal} · P ${rem.p} · C ${rem.c} · F ${rem.f}`,true); remCell.style.color=overAny?'#a50e0e':'#137333'; tr.appendChild(remCell);
+        weekBodyEl.appendChild(tr);
       }
+    }
+    refreshWeekBtn.onclick=()=>loadWeekOverview(planDateEl.value||todayStr());
 
-      ingredientForm.addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const n=$('ingName').value.trim();
-        const kcal=Number($('ingKcal').value), p=Number($('ingP').value), c=Number($('ingC').value), f=Number($('ingF').value);
-        if (!n || [kcal,p,c,f].some(v=>Number.isNaN(v)||v<0)){ showMsg('Fill all ingredient fields with valid numbers.', false); return; }
-        await addDoc(collection(db,'ingredients'), {
-          name:n, caloriesPer100:kcal, proteinPer100:p, carbsPer100:c, fatPer100:f,
-          ownerUid: auth.currentUser?.uid || null,
-          createdAt: serverTimestamp()
-        });
-        ingredientForm.reset();
-        await loadIngredientsList();
-        await fillIngredientSelects();
-        showMsg('Ingredient saved!');
-      });
+    // Shopping list (aggregate ingredients from week's plans)
+    const genShopBtn=$('genShop'), downloadBtn=$('downloadCSV'), shopListEl=$('shopList'), shopInfo=$('shopInfo');
+    let lastShopping = []; // [{name, grams}]
+    async function generateShoppingList(){
+      shopListEl.innerHTML='<li style="color:#777">Building…</li>';
+      lastShopping = [];
+      const u=auth.currentUser; if(!u){ shopInfo.textContent='Sign in to generate'; return; }
+      const days=weekRangeAround(planDateEl.value||todayStr()).map(isoFromDate);
+      // cache recipes by id
+      const recipeCache=new Map();
 
-      // RECIPES logic
-      const recipesList=$('recipesList');
-      async function loadRecipesList(limitN=20){
-        recipesList.innerHTML = '<li style="color:#777">Loading…</li>';
-        const qy=query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(limitN));
-        const snap=await getDocs(qy);
-        recipesList.innerHTML='';
-        if (snap.empty){ recipesList.innerHTML='<li style="color:#777">No recipes yet.</li>'; return; }
-        snap.forEach(s=>{
-          const r=s.data();
-          const li=document.createElement('li');
-          li.style.marginBottom='.3rem';
-          const kcal=r.caloriesPer100??'—', p=r.proteinPer100??'—', c=r.carbsPer100??'—', f=r.fatPer100??'—';
-          li.textContent=`${r.name} — ${kcal} kcal/100g · P ${p}g · C ${c}g · F ${f}g` + (r.fromIngredients?' (from ingredients)':'');
-          recipesList.appendChild(li);
-        });
-      }
-
-      // Manual recipe
-      const recipeManual=$('recipeManual');
-      recipeManual.addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const name=$('rNameM').value.trim();
-        const kcal=Number($('rKcalM').value), p=Number($('rPM').value), c=Number($('rCM').value), f=Number($('rFM').value);
-        if (!name || [kcal,p,c,f].some(v=>Number.isNaN(v)||v<0)){ showMsg('Fill all recipe fields with valid numbers.', false); return; }
-        await addDoc(collection(db,'recipes'), {
-          name, caloriesPer100:kcal, proteinPer100:p, carbsPer100:c, fatPer100:f,
-          fromIngredients:false,
-          createdAt:serverTimestamp(),
-          ownerUid:auth.currentUser?.uid || null
-        });
-        recipeManual.reset();
-        await loadRecipesList();
-        await fillRecipeSelect(); // planner dropdown
-        showMsg('Recipe saved!');
-      });
-
-      // From-ingredients recipe
-      const recipeFromIng=$('recipeFromIng'), rowsEl=$('rows'), addRowBtn=$('addRow');
-      function makeRow(){
-        const row=document.createElement('div');
-        row.style.display='grid'; row.style.gridTemplateColumns='3fr 1fr auto'; row.style.gap='.5rem'; row.style.alignItems='center';
-
-        const sel=document.createElement('select');
-        sel.className='rowIng';
-        sel.style.padding='.5rem'; sel.style.border='1px solid #ddd'; sel.style.borderRadius='8px';
-
-        const g=document.createElement('input');
-        g.type='number'; g.min='1'; g.step='1'; g.value='100';
-        g.className='rowGrams';
-        g.style.padding='.5rem'; g.style.border='1px solid #ddd'; g.style.borderRadius='8px';
-
-        const rm=document.createElement('button');
-        rm.type='button'; rm.textContent='Remove';
-        rm.style.padding='.4rem .6rem'; rm.style.border='0'; rm.style.borderRadius='8px'; rm.style.background='#a50e0e'; rm.style.color='#fff'; rm.style.cursor='pointer';
-
-        rm.onclick=()=>{ row.remove(); recalc(); };
-        sel.onchange=()=>recalc();
-        g.oninput=()=>recalc();
-
-        row.appendChild(sel); row.appendChild(g); row.appendChild(rm);
-        rowsEl.appendChild(row);
-      }
-
-      async function fillIngredientSelects(){
-        // Load all ingredients (you can paginate later if needed)
-        const snap=await getDocs(query(collection(db,'ingredients'), orderBy('name')));
-        const options = [];
-        snap.forEach(s=>{
-          const r=s.data();
-          const opt=document.createElement('option');
-          opt.value=s.id;
-          opt.textContent=r.name;
-          opt.dataset.kcal=r.caloriesPer100||0;
-          opt.dataset.p=r.proteinPer100||0;
-          opt.dataset.c=r.carbsPer100||0;
-          opt.dataset.f=r.fatPer100||0;
-          options.push(opt);
-        });
-        // Put options in every select
-        rowsEl.querySelectorAll('select.rowIng').forEach(sel=>{
-          sel.innerHTML='';
-          options.forEach(o=>sel.appendChild(o.cloneNode(true)));
-          if (!sel.value && sel.firstChild) sel.firstChild.selected=true;
-        });
-      }
-
-      const calcTotals=$('calcTotals'), calcPer100=$('calcPer100');
-      function recalc(){
-        // Sum totals based on ingredient per100 and grams
-        let totalG=0, kcal=0, p=0, c=0, f=0;
-        rowsEl.querySelectorAll('div').forEach(row=>{
-          const sel=row.querySelector('select.rowIng'); const grams=Number(row.querySelector('input.rowGrams').value)||0;
-          if (!sel || !sel.selectedOptions[0] || grams<=0) return;
-          const o=sel.selectedOptions[0];
-          const per={ kcal:Number(o.dataset.kcal)||0, p:Number(o.dataset.p)||0, c:Number(o.dataset.c)||0, f:Number(o.dataset.f)||0 };
-          totalG += grams;
-          kcal += per.kcal * grams/100;
-          p    += per.p    * grams/100;
-          c    += per.c    * grams/100;
-          f    += per.f    * grams/100;
-        });
-        calcTotals.textContent = `Totals (all grams): kcal ${Math.round(kcal)} · P ${round1(p)}g · C ${round1(c)}g · F ${round1(f)}g · Total ${Math.round(totalG)} g`;
-        if (totalG>0){
-          const k = (kcal/totalG)*100, pp=(p/totalG)*100, cc=(c/totalG)*100, ff=(f/totalG)*100;
-          calcPer100.textContent = `Per 100 g: kcal ${Math.round(k)} · P ${round1(pp)}g · C ${round1(cc)}g · F ${round1(ff)}g`;
-        } else {
-          calcPer100.textContent = `Per 100 g: kcal 0 · P 0g · C 0g · F 0g`;
+      const needByName=new Map(); // name -> grams
+      for(const dateStr of days){
+        const snap=await getDocs(collection(db,'plans',u.uid,'days',dateStr,'meals'));
+        for(const docSnap of snap.docs){
+          const m=docSnap.data();
+          const g = +m.grams || 0;
+          if (!m.recipeId) continue;
+          // fetch recipe (once)
+          let rec = recipeCache.get(m.recipeId);
+          if (!rec){
+            const rSnap = await getDoc(doc(db,'recipes',m.recipeId));
+            rec = rSnap.exists() ? rSnap.data() : null;
+            recipeCache.set(m.recipeId, rec);
+          }
+          if (!rec || !rec.fromIngredients || !Array.isArray(rec.ingredients) || !rec.totalGrams) {
+            // Manual recipes can't be expanded into ingredients — skip.
+            continue;
+          }
+          const factor = g / rec.totalGrams; // scale recipe to meal grams
+          rec.ingredients.forEach(it=>{
+            const add = (it.grams || 0) * factor;
+            if (add <= 0) return;
+            const key = it.name || it.ingredientId || 'Unknown';
+            needByName.set(key, (needByName.get(key)||0) + add);
+          });
         }
       }
+      // Build list & render
+      shopListEl.innerHTML='';
+      lastShopping = Array.from(needByName.entries())
+        .map(([name, grams]) => ({ name, grams: Math.round(grams) }))
+        .sort((a,b)=>a.name.localeCompare(b.name));
 
-      addRowBtn.addEventListener('click', async ()=>{
-        makeRow();
-        await fillIngredientSelects();
-        recalc();
+      if (lastShopping.length === 0){
+        shopListEl.innerHTML = '<li style="color:#777">No ingredient-based recipes in this week.</li>';
+        shopInfo.textContent = 'Tip: only recipes created “from ingredients” are included.';
+        return;
+      }
+      let totalItems=0;
+      lastShopping.forEach(it=>{
+        const li=document.createElement('li');
+        const kg = (it.grams/1000);
+        li.textContent = `${it.name}: ${it.grams} g` + (kg>=1?` (${kg.toFixed(2)} kg)`:``);
+        shopListEl.appendChild(li);
+        totalItems++;
       });
+      shopInfo.textContent = `Items: ${totalItems}. (Aggregated across ${days[0]}–${days[6]}.)`;
+    }
+    genShopBtn.onclick = generateShoppingList;
 
-      recipeFromIng.addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        const name=$('rNameI').value.trim();
-        if (!name){ showMsg('Recipe name required', false); return; }
-        // build breakdown
-        const items=[];
-        let totalG=0, kcal=0, p=0, c=0, f=0;
-        rowsEl.querySelectorAll('div').forEach(row=>{
-          const sel=row.querySelector('select.rowIng'); const grams=Number(row.querySelector('input.rowGrams').value)||0;
-          if (!sel || !sel.selectedOptions[0] || grams<=0) return;
-          const o=sel.selectedOptions[0];
-          const per={ kcal:Number(o.dataset.kcal)||0, p:Number(o.dataset.p)||0, c:Number(o.dataset.c)||0, f:Number(o.dataset.f)||0 };
-          items.push({ ingredientId: sel.value, name: o.textContent, grams, per100: per });
-          totalG += grams;
-          kcal += per.kcal * grams/100;
-          p    += per.p    * grams/100;
-          c    += per.c    * grams/100;
-          f    += per.f    * grams/100;
-        });
-        if (items.length===0){ showMsg('Add at least one ingredient with grams.', false); return; }
-        const per100 = {
-          kcal: Math.round((kcal/totalG)*100),
-          p: +((p/totalG)*100).toFixed(1),
-          c: +((c/totalG)*100).toFixed(1),
-          f: +((f/totalG)*100).toFixed(1),
-        };
-        await addDoc(collection(db,'recipes'), {
-          name,
-          caloriesPer100: per100.kcal,
-          proteinPer100:  per100.p,
-          carbsPer100:    per100.c,
-          fatPer100:      per100.f,
-          fromIngredients: true,
-          totalGrams: totalG,
-          ingredients: items,
-          ownerUid: auth.currentUser?.uid || null,
-          createdAt: serverTimestamp()
-        });
-        // reset
-        $('rNameI').value='';
-        rowsEl.innerHTML='';
-        recalc();
-        await loadRecipesList();
-        await fillRecipeSelect();
-        showMsg('Recipe saved from ingredients!');
-      });
+    // Download CSV
+    downloadBtn.onclick = ()=>{
+      if (!lastShopping.length) return showMsg('Generate first', false);
+      const rows = [['Ingredient','Grams','Kg']];
+      lastShopping.forEach(it=> rows.push([it.name, String(it.grams), (it.grams/1000).toFixed(3)]));
+      const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'shopping-list.csv'; a.click();
+      URL.revokeObjectURL(url);
+    };
 
-      // Tabs
-      const tabManual=$('tabManual'), tabFromIng=$('tabFromIng');
-      function setTab(which){
-        const sel=(btn,active)=>{ btn.style.background=active?'#fff':'#fafafa'; btn.style.borderColor=active?'#0b57d0':'#ddd'; };
-        const isManual = which==='manual';
-        recipeManual.style.display = isManual?'grid':'none';
-        recipeFromIng.style.display = isManual?'none':'grid';
-        sel(tabManual, isManual); sel(tabFromIng, !isManual);
-      }
-      tabManual.onclick=()=>setTab('manual');
-      tabFromIng.onclick=()=>setTab('from');
-      setTab('manual'); // default
-
-      // PLANNER + WEEK (reuse from your latest working version)
-      const planDateEl   = $('planDate');
-      const mealTypeEl   = $('mealType');
-      const mealRecipeEl = $('mealRecipe');
-      const mealGramsEl  = $('mealGrams');
-      const addMealBtn   = $('addMealBtn');
-      const mealsListEl  = $('mealsList');
-      const totalsEl     = $('totals');
-      const remainingEl  = $('remaining');
-      const tKcalEl=$('tKcal'), tPEl=$('tP'), tCEl=$('tC'), tFEl=$('tF'), saveTargetsBtn=$('saveTargets'), targetsSavedEl=$('targetsSaved');
-      const suggestBtn=$('suggestBtn'), suggestOut=$('suggestOut'), applySuggestBtn=$('applySuggestBtn');
-
-      planDateEl.value = todayStr();
-      let currentTotals={kcal:0,p:0,c:0,f:0}, currentRemaining={kcal:0,p:0,c:0,f:0}, lastSuggestion=null;
-
-      async function fillRecipeSelect(){
-        mealRecipeEl.innerHTML = `<option disabled selected>Loading recipes…</option>`;
-        const snap = await getDocs(query(collection(db,'recipes'), orderBy('createdAt','desc')));
-        mealRecipeEl.innerHTML='';
-        snap.forEach(s=>{
-          const r=s.data();
-          const opt=document.createElement('option');
-          opt.value=s.id;
-          opt.textContent=r.name;
-          opt.dataset.kcal=r.caloriesPer100||0;
-          opt.dataset.p=r.proteinPer100||0;
-          opt.dataset.c=r.carbsPer100||0;
-          opt.dataset.f=r.fatPer100||0;
-          mealRecipeEl.appendChild(opt);
-        });
-        if (!mealRecipeEl.value && mealRecipeEl.firstChild) mealRecipeEl.firstChild.selected = true;
-      }
-
-      async function loadRecentRecipesSimple(limitN=10){
-        // Keep a small side list (optional)
-      }
-
-      // Save targets, load meals, etc. (same behavior as before)
-      async function saveTargets(){
-        const user=auth.currentUser; if (!user){ showMsg('Sign in first.', false); return; }
-        const dateStr=planDateEl.value||todayStr();
-        const dayRef=doc(db,'plans',user.uid,'days',dateStr);
-        const targets={ kcal:Number(tKcalEl.value)||0, p:Number(tPEl.value)||0, c:Number(tCEl.value)||0, f:Number(tFEl.value)||0, updatedAt:serverTimestamp() };
-        await setDoc(dayRef,{targets},{merge:true}); targetsSavedEl.style.display='block'; setTimeout(()=>targetsSavedEl.style.display='none',2000);
-        await loadMealsAndTargets(dateStr); await loadWeekOverview(dateStr);
-      }
-      saveTargetsBtn.onclick=saveTargets;
-
-      async function loadMealsAndTargets(dateStr){
-        mealsListEl.innerHTML='<li style="color:#777">Loading…</li>';
-        const user=auth.currentUser; if (!user){ mealsListEl.innerHTML='<li>Sign in to view your plan.</li>'; totalsEl.textContent='Totals: —'; remainingEl.textContent='Remaining: —'; return; }
-        const dayRef=doc(db,'plans',user.uid,'days',dateStr); const daySnap=await getDoc(dayRef);
-        if (daySnap.exists() && daySnap.data().targets){ const t=daySnap.data().targets; tKcalEl.value=t.kcal??tKcalEl.value; tPEl.value=t.p??tPEl.value; tCEl.value=t.c??tCEl.value; tFEl.value=t.f??tFEl.value; }
-        // meals
-        const mealsCol=collection(db,'plans',user.uid,'days',dateStr,'meals'); const snap=await getDocs(query(mealsCol, orderBy('createdAt')));
-        mealsListEl.innerHTML=''; let kcal=0,p=0,c=0,f=0;
-        snap.forEach(s=>{
-          const m=s.data(); const g=Number(m.grams)||0;
-          kcal += (m.per100?.kcal||0)*g/100; p+=(m.per100?.p||0)*g/100; c+=(m.per100?.c||0)*g/100; f+=(m.per100?.f||0)*g/100;
-          const li=document.createElement('li'); li.style.marginBottom='.4rem'; li.style.display='flex'; li.style.gap='.5rem'; li.style.alignItems='center';
-          const label=document.createElement('span'); label.textContent = `${m.mealType}: ${m.recipeName} —`;
-          const gramsInput=document.createElement('input'); gramsInput.type='number'; gramsInput.min='1'; gramsInput.step='1'; gramsInput.value=String(g); gramsInput.style.width='90px'; gramsInput.style.padding='.3rem'; gramsInput.style.border='1px solid #ddd'; gramsInput.style.borderRadius='8px';
-          const gSuffix=document.createElement('span'); gSuffix.textContent='g';
-          const saveBtn=document.createElement('button'); saveBtn.textContent='Save'; saveBtn.style.padding='.3rem .6rem'; saveBtn.style.border='0'; saveBtn.style.borderRadius='8px'; saveBtn.style.background='#137333'; saveBtn.style.color='white'; saveBtn.style.cursor='pointer';
-          const delBtn=document.createElement('button'); delBtn.textContent='Delete'; delBtn.style.padding='.3rem .6rem'; delBtn.style.border='0'; delBtn.style.borderRadius='8px'; delBtn.style.background='#a50e0e'; delBtn.style.color='white'; delBtn.style.cursor='pointer';
-          saveBtn.onclick=async()=>{ const newG=Number(gramsInput.value); if(!newG||newG<=0){showMsg('Grams must be > 0',false);return;} await updateDoc(s.ref,{grams:newG}); showMsg('Updated grams'); await loadMealsAndTargets(dateStr); await loadWeekOverview(dateStr); };
-          delBtn.onclick=async()=>{ await deleteDoc(s.ref); showMsg('Deleted meal'); await loadMealsAndTargets(dateStr); await loadWeekOverview(dateStr); };
-          li.appendChild(label); li.appendChild(gramsInput); li.appendChild(gSuffix); li.appendChild(saveBtn); li.appendChild(delBtn); mealsListEl.appendChild(li);
-        });
-        currentTotals={kcal:Math.round(kcal), p:+p.toFixed(1), c:+c.toFixed(1), f:+f.toFixed(1)};
-        totalsEl.textContent=`Totals: kcal ${currentTotals.kcal} · P ${currentTotals.p}g · C ${currentTotals.c}g · F ${currentTotals.f}g`;
-        const rK=Number(tKcalEl.value)-kcal, rP=Number(tPEl.value)-p, rC=Number(tCEl.value)-c, rF=Number(tFEl.value)-f;
-        const overAny = rK<0 || rP<0 || rC<0 || rF<0;
-        currentRemaining={kcal:Math.max(0,Math.round(rK)), p:Math.max(0,+rP.toFixed(1)), c:Math.max(0,+rC.toFixed(1)), f:Math.max(0,+rF.toFixed(1))};
-        remainingEl.style.color=overAny?'#a50e0e':'#137333';
-        remainingEl.textContent=`Remaining: kcal ${currentRemaining.kcal} · P ${currentRemaining.p}g · C ${currentRemaining.c}g · F ${currentRemaining.f}g`;
-        if (suggestOut) suggestOut.textContent=''; if (applySuggestBtn) applySuggestBtn.style.display='none'; lastSuggestion=null;
-      }
-
-      function round5(x){ return Math.max(0, Math.round(x/5)*5); }
-      $('suggestBtn').addEventListener('click', ()=>{
-        const opt=mealRecipeEl.selectedOptions[0]; if(!opt){ showMsg('Pick a recipe first.', false); return; }
-        const per={ kcal:Number(opt.dataset.kcal)||0, p:Number(opt.dataset.p)||0, c:Number(opt.dataset.c)||0, f:Number(opt.dataset.f)||0 };
-        const gramsK = per.kcal>0 ? 100*(currentRemaining.kcal)/per.kcal : NaN;
-        const gramsP = per.p>0 ? 100*(currentRemaining.p)/per.p : NaN;
-        const gramsC = per.c>0 ? 100*(currentRemaining.c)/per.c : NaN;
-        const gramsF = per.f>0 ? 100*(currentRemaining.f)/per.f : NaN;
-        const parts=[]; if(isFinite(gramsK))parts.push(`kcal ≈ ${round5(gramsK)}g`); if(isFinite(gramsP))parts.push(`P ≈ ${round5(gramsP)}g`); if(isFinite(gramsC))parts.push(`C ≈ ${round5(gramsC)}g`); if(isFinite(gramsF))parts.push(`F ≈ ${round5(gramsF)}g`);
-        if(!parts.length){ suggestOut.textContent='This recipe lacks per-100 values.'; applySuggestBtn.style.display='none'; return; }
-        suggestOut.textContent=`For "${opt.textContent}": `+parts.join(' · ')+' (rounded to 5g)';
-        const suggestion=isFinite(gramsK)?round5(gramsK):NaN;
-        if(isFinite(suggestion)&&suggestion>0){ lastSuggestion={grams:suggestion}; applySuggestBtn.style.display='inline-block'; } else { applySuggestBtn.style.display='none'; lastSuggestion=null; }
-      });
-      $('applySuggestBtn').addEventListener('click', ()=>{ if(!lastSuggestion)return; mealGramsEl.value=String(lastSuggestion.grams); showMsg(`Applied ${lastSuggestion.grams} g`); });
-
-      addMealBtn.addEventListener('click', async ()=>{
-        const user=auth.currentUser; if(!user){ showMsg('Sign in first.', false); return; }
-        const dateStr=planDateEl.value||todayStr();
-        const recipeId=mealRecipeEl.value; const grams=Number(mealGramsEl.value); const mealType=mealTypeEl.value;
-        if(!recipeId||!grams||grams<=0){ showMsg('Pick a recipe and grams > 0', false); return; }
-        const opt=mealRecipeEl.selectedOptions[0];
-        const per100={ kcal:Number(opt.dataset.kcal)||0, p:Number(opt.dataset.p)||0, c:Number(opt.dataset.c)||0, f:Number(opt.dataset.f)||0 };
-        await addDoc(collection(db,'plans',user.uid,'days',dateStr,'meals'), { mealType, recipeId, recipeName:opt.textContent, grams, per100, createdAt:serverTimestamp() });
-        showMsg('Added to plan');
-        await loadMealsAndTargets(dateStr); await loadWeekOverview(dateStr);
-      });
-
-      // Weekly overview
-      const weekRangeEl=$('weekRange'), weekBodyEl=$('weekBody'); $('refreshWeek').addEventListener('click', ()=>loadWeekOverview(planDateEl.value||todayStr()));
-      function dateFromISO(s){ const [Y,M,D]=s.split('-').map(Number); return new Date(Y,M-1,D); }
-      function isoFromDate(d){ const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
-      function weekRangeAround(dateStr){ const d=dateFromISO(dateStr); const day=(d.getDay()+6)%7; const mon=new Date(d); mon.setDate(d.getDate()-day); return Array.from({length:7},(_,i)=>{const x=new Date(mon); x.setDate(mon.getDate()+i); return x;}); }
-      async function loadWeekOverview(anchorDateStr){
-        if(!weekBodyEl||!weekRangeEl) return;
-        weekBodyEl.innerHTML=''; const user=auth.currentUser; if(!user){ weekRangeEl.textContent='—'; return; }
-        const days=weekRangeAround(anchorDateStr||todayStr()); weekRangeEl.textContent=`${isoFromDate(days[0])} — ${isoFromDate(days[6])}`;
-        for (const d of days){
-          const dateStr=isoFromDate(d);
-          const dayRef=doc(db,'plans',user.uid,'days',dateStr);
-          const daySnap=await getDoc(dayRef);
-          const targets=daySnap.exists() && daySnap.data().targets ? daySnap.data().targets : {kcal:0,p:0,c:0,f:0};
-          const mealsCol=collection(db,'plans',user.uid,'days',dateStr,'meals'); const snap=await getDocs(mealsCol);
-          let kcal=0,p=0,c=0,f=0;
-          snap.forEach(s=>{ const m=s.data(); const g=Number(m.grams)||0; kcal+=(m.per100?.kcal||0)*g/100; p+=(m.per100?.p||0)*g/100; c+=(m.per100?.c||0)*g/100; f+=(m.per100?.f||0)*g/100; });
-          const rem={ kcal:Math.max(0,Math.round((targets.kcal||0)-kcal)), p:Math.max(0,+((targets.p||0)-p).toFixed(1)), c:Math.max(0,+((targets.c||0)-c).toFixed(1)), f:Math.max(0,+((targets.f||0)-f).toFixed(1)) };
-          const tr=document.createElement('tr');
-          const overAny=((targets.kcal||0)&&kcal>targets.kcal)||((targets.p||0)&&p>targets.p)||((targets.c||0)&&c>targets.c)||((targets.f||0)&&f>targets.f);
-          const td=(txt,right=false)=>{ const cell=document.createElement('td'); cell.style.padding='.5rem .6rem'; cell.style.borderBottom='1px solid #f1f1f1'; cell.style.textAlign=right?'right':'left'; cell.textContent=txt; return cell; };
-          tr.appendChild(td(dateStr)); tr.appendChild(td(String(Math.round(kcal)),true)); tr.appendChild(td(p.toFixed(1),true)); tr.appendChild(td(c.toFixed(1),true)); tr.appendChild(td(f.toFixed(1),true));
-          const remCell=td(`k ${rem.kcal} · P ${rem.p} · C ${rem.c} · F ${rem.f}`,true); remCell.style.color=overAny?'#a50e0e':'#137333'; tr.appendChild(remCell);
-          weekBodyEl.appendChild(tr);
-        }
-      }
-
-      // Auth state
-      onAuthStateChanged(auth, (user)=>{
-        who.textContent = user ? `Signed in as ${user.displayName || user.email}` : 'Not signed in';
-        authBtn.textContent = user ? 'Sign out' : 'Sign in with Google';
-        // refresh
-        loadIngredientsList().catch(console.error);
-        loadRecipesList().catch(console.error);
-        fillIngredientSelects().catch(console.error);
-        fillRecipeSelect().catch(console.error);
-        $('planDate').value=todayStr();
-        loadMealsAndTargets($('planDate').value).catch(console.error);
-        loadWeekOverview($('planDate').value).catch(console.error);
-      });
-
-      // Bootstrap (unauthenticated reads allowed per rules)
-      loadIngredientsList().catch(console.error);
-      loadRecipesList().catch(console.error);
-      makeRow(); fillIngredientSelects().then(recalc);
-      $('planDate').value=todayStr();
-    </script>
-  </body>
+    // Bootstrap
+    async function bootstrap(){
+      await fillRecipeSelect();
+      await loadMealsAndTargets(planDateEl.value);
+      await loadWeekOverview(planDateEl.value);
+    }
+    // If already signed in on load:
+    if (auth.currentUser) bootstrap(); else onAuthStateChanged(auth, ()=>{});
+  </script>
+</body>
 </html>

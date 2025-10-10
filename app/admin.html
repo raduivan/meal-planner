@@ -1,0 +1,242 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Meal Planner — Admin</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:2rem;line-height:1.4}
+    .card{border:1px solid #eee;border-radius:12px;padding:1rem}
+    .btn{padding:.55rem .9rem;border:0;border-radius:10px;background:#0b57d0;color:#fff;font-weight:600;cursor:pointer}
+    .btn-ghost{padding:.45rem .8rem;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
+    input,select{padding:.55rem;border:1px solid #ddd;border-radius:10px}
+    .grid2{display:grid;gap:.75rem;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .row{display:flex;gap:.5rem;align-items:center}
+    a.top{color:#0b57d0;text-decoration:none;font-weight:600}
+  </style>
+</head>
+<body>
+  <div class="row" style="justify-content:space-between;margin-bottom:1rem">
+    <div>
+      <h1 style="margin:0">Admin</h1>
+      <div style="color:#555">Ingredients & Recipes</div>
+    </div>
+    <div class="row" id="authbar" style="position:relative;z-index:10">
+      <a class="top" href="/index.html">Planner</a>
+      <div id="who" style="margin-left:1rem;color:#555">Not signed in</div>
+      <button id="authBtn" type="button" class="btn" style="margin-left:.5rem">Sign in with Google</button>
+    </div>
+  </div>
+
+  <div id="msg" style="display:none;padding:.6rem .8rem;border-radius:10px;background:#e8f0fe;color:#174ea6;margin:.5rem 0"></div>
+
+  <!-- INGREDIENTS -->
+  <h2>Ingredients (per 100 g)</h2>
+  <div class="card" style="max-width:720px;margin:.75rem 0;">
+    <form id="ingredientForm" class="grid2">
+      <label><div>Name</div><input id="ingName" required placeholder="Chicken breast, cooked"></label>
+      <label><div>Calories / 100g</div><input id="ingKcal" type="number" min="0" step="1" required placeholder="165"></label>
+      <label><div>Protein g / 100g</div><input id="ingP" type="number" min="0" step="0.1" required placeholder="31"></label>
+      <label><div>Carbs g / 100g</div><input id="ingC" type="number" min="0" step="0.1" required placeholder="0"></label>
+      <label><div>Fat g / 100g</div><input id="ingF" type="number" min="0" step="0.1" required placeholder="3.6"></label>
+      <div><button class="btn" type="submit">Save ingredient</button></div>
+    </form>
+
+    <div style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:.25rem">Recent ingredients</div>
+      <ul id="ingredientsList" style="padding-left:1rem;margin:0"></ul>
+    </div>
+  </div>
+
+  <!-- RECIPES -->
+  <h2>Recipes</h2>
+  <div class="card" style="max-width:900px;margin:.75rem 0;">
+    <div class="row" style="gap:.5rem;margin-bottom:.5rem">
+      <button id="tabManual" type="button" class="btn-ghost" style="border-color:#0b57d0">Manual entry</button>
+      <button id="tabFromIng" type="button" class="btn-ghost">From ingredients</button>
+    </div>
+
+    <!-- Manual -->
+    <form id="recipeManual" class="grid2">
+      <label><div>Recipe name</div><input id="rNameM" required placeholder="Pasta Primavera"></label>
+      <label><div>Calories / 100g</div><input id="rKcalM" type="number" min="0" step="1" required placeholder="550"></label>
+      <label><div>Protein g / 100g</div><input id="rPM" type="number" min="0" step="0.1" required placeholder="20"></label>
+      <label><div>Carbs g / 100g</div><input id="rCM" type="number" min="0" step="0.1" required placeholder="60"></label>
+      <label><div>Fat g / 100g</div><input id="rFM" type="number" min="0" step="0.1" required placeholder="12"></label>
+      <div><button class="btn" type="submit">Save recipe</button></div>
+    </form>
+
+    <!-- From ingredients -->
+    <form id="recipeFromIng" style="display:none">
+      <label><div>Recipe name</div><input id="rNameI" required placeholder="Chicken & Rice Bowl" style="width:100%"></label>
+      <div style="margin:.6rem 0">
+        <div style="font-weight:600;margin:.25rem 0;">Ingredients in recipe</div>
+        <div id="rows" style="display:grid;gap:.5rem"></div>
+        <button id="addRow" type="button" class="btn-ghost">+ Add ingredient</button>
+      </div>
+      <div id="calcBox" class="card" style="background:#fafafa">
+        <div style="font-weight:600;margin-bottom:.3rem;">Calculated nutrition</div>
+        <div id="calcTotals" style="color:#444;">Totals: kcal 0 · P 0g · C 0g · F 0g · Total 0 g</div>
+        <div id="calcPer100" style="color:#174ea6;font-weight:600;">Per 100 g: kcal 0 · P 0g · C 0g · F 0g</div>
+      </div>
+      <div style="margin-top:.6rem"><button class="btn" type="submit">Save recipe</button></div>
+    </form>
+
+    <div style="margin-top:1rem">
+      <div style="font-weight:600;margin-bottom:.25rem">Recent recipes</div>
+      <ul id="recipesList" style="padding-left:1rem;margin:0"></ul>
+    </div>
+  </div>
+
+  <script type="module">
+    // Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, serverTimestamp,
+      query, orderBy, limit, getDocs, doc, setDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyT1R-qx5aFCsizhRMeP1hz1pdJaLLjqk",
+      authDomain: "meal-planner-474313.firebaseapp.com",
+      projectId: "meal-planner-474313",
+      storageBucket: "meal-planner-474313.appspot.com",
+      messagingSenderId: "127147945973",
+      appId: "1:127147945973:web:e2bffc4a702705c463babc"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const $ = (id)=>document.getElementById(id);
+    const msg = $('msg');
+    const showMsg=(t,ok=true)=>{ msg.textContent=t; msg.style.display='block'; msg.style.background=ok?'#e8f0fe':'#fde7e9'; msg.style.color=ok?'#174ea6':'#a50e0e'; setTimeout(()=>msg.style.display='none',2500); };
+
+    // Auth UI
+    $('authBtn').onclick = async () => {
+      try { if (auth.currentUser) return void (await signOut(auth));
+            await signInWithPopup(auth, provider);
+      } catch { const {signInWithRedirect}=await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"); await signInWithRedirect(auth, provider); }
+    };
+    onAuthStateChanged(auth, (u)=> {
+      $('who').textContent = u ? `Signed in as ${u.displayName||u.email}` : 'Not signed in';
+      $('authBtn').textContent = u ? 'Sign out' : 'Sign in with Google';
+      loadIngredients();
+      loadRecipes();
+      fillIngredientSelects();
+    });
+
+    // Ingredients
+    const ingredientsList=$('ingredientsList');
+    async function loadIngredients(){
+      ingredientsList.innerHTML = '<li style="color:#777">Loading…</li>';
+      const snap = await getDocs(query(collection(db,'ingredients'), orderBy('createdAt','desc'), limit(20)));
+      ingredientsList.innerHTML='';
+      if (snap.empty) { ingredientsList.innerHTML='<li style="color:#777">No ingredients yet.</li>'; return; }
+      snap.forEach(s=>{
+        const r=s.data();
+        const li=document.createElement('li');
+        li.textContent=`${r.name} — ${r.caloriesPer100} kcal · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g`;
+        ingredientsList.appendChild(li);
+      });
+    }
+    $('ingredientForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const n=$('ingName').value.trim();
+      const kcal=+$('ingKcal').value, p=+$('ingP').value, c=+$('ingC').value, f=+$('ingF').value;
+      if (!n || [kcal,p,c,f].some(v=>Number.isNaN(v)||v<0)) return showMsg('Fill all fields with valid numbers', false);
+      await addDoc(collection(db,'ingredients'), { name:n, caloriesPer100:kcal, proteinPer100:p, carbsPer100:c, fatPer100:f, ownerUid:auth.currentUser?.uid||null, createdAt:serverTimestamp() });
+      (e.target).reset(); showMsg('Ingredient saved'); loadIngredients(); fillIngredientSelects();
+    });
+
+    // Recipes — list
+    const recipesList=$('recipesList');
+    async function loadRecipes(){
+      recipesList.innerHTML = '<li style="color:#777">Loading…</li>';
+      const snap = await getDocs(query(collection(db,'recipes'), orderBy('createdAt','desc'), limit(20)));
+      recipesList.innerHTML='';
+      if (snap.empty){ recipesList.innerHTML='<li style="color:#777">No recipes yet.</li>'; return; }
+      snap.forEach(s=>{
+        const r=s.data();
+        const li=document.createElement('li');
+        li.textContent=`${r.name} — ${r.caloriesPer100} kcal/100g · P ${r.proteinPer100}g · C ${r.carbsPer100}g · F ${r.fatPer100}g${r.fromIngredients?' (from ingredients)':''}`;
+        recipesList.appendChild(li);
+      });
+    }
+
+    // Tabs
+    const recipeManual=$('recipeManual'), recipeFromIng=$('recipeFromIng'), tabManual=$('tabManual'), tabFromIng=$('tabFromIng');
+    const setTab=(which)=>{
+      const isManual=which==='manual';
+      recipeManual.style.display=isManual?'grid':'none';
+      recipeFromIng.style.display=isManual?'none':'block';
+      tabManual.style.borderColor=isManual?'#0b57d0':'#ddd';
+      tabFromIng.style.borderColor=!isManual?'#0b57d0':'#ddd';
+    };
+    tabManual.onclick=()=>setTab('manual'); tabFromIng.onclick=()=>setTab('from'); setTab('manual');
+
+    // Manual recipe save
+    recipeManual.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const name=$('rNameM').value.trim(); const kcal=+$('rKcalM').value, p=+$('rPM').value, c=+$('rCM').value, f=+$('rFM').value;
+      if (!name || [kcal,p,c,f].some(v=>Number.isNaN(v)||v<0)) return showMsg('Fill all fields with valid numbers', false);
+      await addDoc(collection(db,'recipes'), { name, caloriesPer100:kcal, proteinPer100:p, carbsPer100:c, fatPer100:f, fromIngredients:false, ownerUid:auth.currentUser?.uid||null, createdAt:serverTimestamp() });
+      (e.target).reset(); showMsg('Recipe saved'); loadRecipes();
+    });
+
+    // From ingredients builder
+    const rowsEl=$('rows'); const addRowBtn=$('addRow'); const calcTotals=$('calcTotals'); const calcPer100=$('calcPer100');
+    function makeRow(){
+      const row=document.createElement('div'); row.className='row';
+      const sel=document.createElement('select'); sel.className='rowIng'; sel.style.minWidth='280px';
+      const g=document.createElement('input'); g.className='rowGrams'; g.type='number'; g.min='1'; g.step='1'; g.value='100';
+      const rm=document.createElement('button'); rm.type='button'; rm.textContent='Remove'; rm.className='btn-ghost';
+      rm.onclick=()=>{ row.remove(); recalc(); }; sel.onchange=recalc; g.oninput=recalc;
+      row.appendChild(sel); row.appendChild(g); row.appendChild(rm); rowsEl.appendChild(row);
+    }
+    async function fillIngredientSelects(){
+      const snap = await getDocs(query(collection(db,'ingredients'), orderBy('name')));
+      const opts=[]; snap.forEach(s=>{ const r=s.data(); const o=document.createElement('option'); o.value=s.id; o.textContent=r.name; o.dataset.kcal=r.caloriesPer100||0; o.dataset.p=r.proteinPer100||0; o.dataset.c=r.carbsPer100||0; o.dataset.f=r.fatPer100||0; opts.push(o); });
+      rowsEl.querySelectorAll('select.rowIng').forEach(sel=>{ sel.innerHTML=''; opts.forEach(o=>sel.appendChild(o.cloneNode(true))); if (!sel.value && sel.firstChild) sel.firstChild.selected=true; });
+    }
+    function round1(x){return Math.round(x*10)/10;}
+    function recalc(){
+      let totalG=0,kcal=0,p=0,c=0,f=0;
+      rowsEl.querySelectorAll('.row').forEach(row=>{
+        const sel=row.querySelector('.rowIng'); const grams=+row.querySelector('.rowGrams').value||0;
+        if(!sel||!sel.selectedOptions[0]||grams<=0) return;
+        const o=sel.selectedOptions[0]; const per={kcal:+o.dataset.kcal||0,p:+o.dataset.p||0,c:+o.dataset.c||0,f:+o.dataset.f||0};
+        totalG+=grams; kcal+=per.kcal*grams/100; p+=per.p*grams/100; c+=per.c*grams/100; f+=per.f*grams/100;
+      });
+      calcTotals.textContent=`Totals: kcal ${Math.round(kcal)} · P ${round1(p)}g · C ${round1(c)}g · F ${round1(f)}g · Total ${Math.round(totalG)} g`;
+      if(totalG>0){ const K=(kcal/totalG)*100, P=(p/totalG)*100, C=(c/totalG)*100, F=(f/totalG)*100;
+        calcPer100.textContent=`Per 100 g: kcal ${Math.round(K)} · P ${round1(P)}g · C ${round1(C)}g · F ${round1(F)}g`; }
+      else calcPer100.textContent=`Per 100 g: kcal 0 · P 0g · C 0g · F 0g`;
+    }
+    addRowBtn.onclick=()=>{ makeRow(); fillIngredientSelects(); recalc(); };
+    makeRow(); // start with one row
+
+    $('recipeFromIng').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const name=$('rNameI').value.trim(); if(!name) return showMsg('Name required', false);
+      const items=[]; let totalG=0,kcal=0,p=0,c=0,f=0;
+      rowsEl.querySelectorAll('.row').forEach(row=>{
+        const sel=row.querySelector('.rowIng'); const grams=+row.querySelector('.rowGrams').value||0;
+        if(!sel||!sel.selectedOptions[0]||grams<=0) return;
+        const o=sel.selectedOptions[0]; const per={kcal:+o.dataset.kcal||0,p:+o.dataset.p||0,c:+o.dataset.c||0,f:+o.dataset.f||0};
+        items.push({ingredientId:sel.value,name:o.textContent,grams,per100:per});
+        totalG+=grams; kcal+=per.kcal*grams/100; p+=per.p*grams/100; c+=per.c*grams/100; f+=per.f*grams/100;
+      });
+      if(items.length===0) return showMsg('Add at least one ingredient', false);
+      const per100={ kcal:Math.round((kcal/totalG)*100), p:+((p/totalG)*100).toFixed(1), c:+((c/totalG)*100).toFixed(1), f:+((f/totalG)*100).toFixed(1) };
+      await addDoc(collection(db,'recipes'), { name, caloriesPer100:per100.kcal, proteinPer100:per100.p, carbsPer100:per100.c, fatPer100:per100.f, fromIngredients:true, totalGrams:totalG, ingredients:items, ownerUid:auth.currentUser?.uid||null, createdAt:serverTimestamp() });
+      $('rNameI').value=''; rowsEl.innerHTML=''; makeRow(); fillIngredientSelects(); recalc(); showMsg('Recipe saved'); loadRecipes();
+    });
+  </script>
+</body>
+</html>
