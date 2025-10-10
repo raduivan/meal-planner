@@ -54,44 +54,42 @@ service cloud.firestore {
     }
 
     // ---------- Recipes (must be from ingredients) ----------
-function validRecipeFromIng(d) {
-  return d.fromIngredients == true
-    && d.name is string
-    && d.totalGrams is number && d.totalGrams > 0
-    && ( !('caloriesPer100' in d) || isNonNeg(d.caloriesPer100) )
-    && ( !('proteinPer100'  in d) || isNonNeg(d.proteinPer100)  )
-    && ( !('carbsPer100'    in d) || isNonNeg(d.carbsPer100)    )
-    && ( !('fatPer100'      in d) || isNonNeg(d.fatPer100)      )
-    && d.ingredients is list
-    && d.ingredients.size() > 0
-    && d.ingredients.hasOnly([
-         'ingredientId','name','grams','per100'
-       ])
-    // each ingredient row
-    && d.ingredients.every(it =>
-         (it.name is string || it.ingredientId is string)
-         && isPos(it.grams)
-         && it.per100 is map
-         && ( !('kcal' in it.per100) || isNonNeg(it.per100.kcal) )
-         && ( !('p'    in it.per100) || isNonNeg(it.per100.p)    )
-         && ( !('c'    in it.per100) || isNonNeg(it.per100.c)    )
-         && ( !('f'    in it.per100) || isNonNeg(it.per100.f)    )
-       );
-}
+    function validRecipeFromIng(d) {
+      return d.fromIngredients == true
+        && d.name is string
+        && isPos(d.totalGrams)
+        && ( !('caloriesPer100' in d) || isNonNeg(d.caloriesPer100) )
+        && ( !('proteinPer100'  in d) || isNonNeg(d.proteinPer100)  )
+        && ( !('carbsPer100'    in d) || isNonNeg(d.carbsPer100)    )
+        && ( !('fatPer100'      in d) || isNonNeg(d.fatPer100)      )
+        && d.ingredients is list
+        && d.ingredients.size() > 0
+        && d.ingredients.all(ing,
+             ing is map
+             && (ing.name is string || ing.ingredientId is string)
+             && isPos(ing.grams)
+             && ing.per100 is map
+             && ( !('kcal' in ing.per100) || isNonNeg(ing.per100.kcal) )
+             && ( !('p'    in ing.per100) || isNonNeg(ing.per100.p)    )
+             && ( !('c'    in ing.per100) || isNonNeg(ing.per100.c)    )
+             && ( !('f'    in ing.per100) || isNonNeg(ing.per100.f)    )
+           );
+    }
 
-match /recipes/{id} {
-  allow read: if true;
+    match /recipes/{id} {
+      allow read: if true;
 
-  // Create must be owned + ingredients-based shape
-  allow create: if createsOwned() && validRecipeFromIng(request.resource.data);
+      // Create must be owned + ingredients-based shape
+      allow create: if createsOwned()
+                    && validRecipeFromIng(request.resource.data);
 
-  // Update: owner only, keep owner, still ingredients-based
-  allow update: if isOwner()
-                && request.resource.data.ownerUid == resource.data.ownerUid
-                && validRecipeFromIng(request.resource.data);
+      // Update: owner only, keep owner, still ingredients-based
+      allow update: if isOwner()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && validRecipeFromIng(request.resource.data);
 
-  allow delete: if isOwner();
-}
+      allow delete: if isOwner();
+    }
 
 
     // ---------- Per-user plans ----------
